@@ -14,8 +14,13 @@ struct DayTraderApp: App {
     @StateObject private var tradeVM    = TradeViewModel()
 
     init() {
-        let service = MockMarketDataService(tickInterval: 1.0)
-        let engine  = SignalEngine()
+        // Use Alpaca if credentials are stored in Keychain, otherwise fall back to Mock
+        let service: MarketDataService = KeychainService.hasAlpacaCredentials
+            ? AlpacaService(apiKey: KeychainService.alpacaAPIKey!,
+                            apiSecret: KeychainService.alpacaAPISecret!)
+            : MockMarketDataService(tickInterval: 1.0)
+
+        let engine = SignalEngine()
         _watchlistVM = StateObject(wrappedValue:
             WatchlistViewModel(service: service, signalEngine: engine)
         )

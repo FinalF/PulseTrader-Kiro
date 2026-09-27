@@ -8,14 +8,16 @@ import Foundation
 enum Configuration {
 
     // MARK: - Market Data Provider
-    // Supported providers: "alphavantage" | "polygon" | "mock"
-    static let marketDataProvider: String = "mock"
+    // "alpaca" when Keychain has credentials, otherwise falls back to "mock"
+    // Do NOT hardcode real keys here — use Settings in the app to enter them.
+    static var marketDataProvider: String {
+        KeychainService.hasAlpacaCredentials ? "alpaca" : "mock"
+    }
 
-    // Alpha Vantage — https://www.alphavantage.co/support/#api-key
-    static let alphaVantageAPIKey: String = "YOUR_ALPHA_VANTAGE_KEY"
-
-    // Polygon.io — https://polygon.io/dashboard
-    static let polygonAPIKey: String = "YOUR_POLYGON_KEY"
+    // Alpaca endpoints
+    static let alpacaDataBaseURL  = "https://data.alpaca.markets"
+    static let alpacaStreamURL    = "wss://stream.data.alpaca.markets/v2/iex"   // free tier: IEX feed
+    static let alpacaPaperBaseURL = "https://paper-api.alpaca.markets"
 
     // MARK: - Polling / refresh
     /// Intra-day quote refresh interval in seconds (minimum 15 for free tiers)

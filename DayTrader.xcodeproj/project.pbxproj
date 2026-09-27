@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0BCDFB9B92BBA8A8D01E8506 /* WatchlistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40942E98EB8A267C5FB63DE /* WatchlistView.swift */; };
 		0F26278D3A0EFCDAF7AF67E4 /* EMACalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFF8F20CEB126347526950A /* EMACalculator.swift */; };
+		16FF923E24C636AB3CB170CB /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6AFE3CCE023622BC7294A20 /* KeychainService.swift */; };
 		1DE8F993EB875DF9848BFA4E /* ATRCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD91F73189FD2584012C6E8 /* ATRCalculator.swift */; };
 		20E1C2C08E993CF0DEB5CE26 /* Stock.swift in Sources */ = {isa = PBXBuildFile; fileRef = E947DC341D23FA36CDC3EC5A /* Stock.swift */; };
 		2274DA563F5FE8C12E9B1B40 /* TradeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CAEFCFF468FCA6E321D99A /* TradeViewModel.swift */; };
@@ -40,6 +41,7 @@
 		D65FC8402526EE9F99DB260F /* ChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53ABA6170EF3F238B07E48C /* ChartView.swift */; };
 		E5DB549EB5CF2B8E5A6583AB /* WatchlistViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08683B670F140FCD4381876D /* WatchlistViewModel.swift */; };
 		ED6DCF501F519A888AEE856C /* VWAPCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F4208AC12FF434D9E6DAF8 /* VWAPCalculator.swift */; };
+		F879DE61942F504E4B9E3313 /* AlpacaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08457B9E59643D48713379B3 /* AlpacaService.swift */; };
 		F9AA0EE379D931F1115A4A42 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F7315B75A8F61741E519491 /* Configuration.swift */; };
 /* End PBXBuildFile section */
 
@@ -56,6 +58,7 @@
 /* Begin PBXFileReference section */
 		0428007E6A42CB6FACF9BB90 /* TradeSignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradeSignal.swift; sourceTree = "<group>"; };
 		06B719CB670C059D564F97C8 /* Quote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Quote.swift; sourceTree = "<group>"; };
+		08457B9E59643D48713379B3 /* AlpacaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlpacaService.swift; sourceTree = "<group>"; };
 		08683B670F140FCD4381876D /* WatchlistViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchlistViewModel.swift; sourceTree = "<group>"; };
 		1D0270D55C31DE1A3CA5E1D3 /* TradingColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradingColors.swift; sourceTree = "<group>"; };
 		1DD91F73189FD2584012C6E8 /* ATRCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATRCalculator.swift; sourceTree = "<group>"; };
@@ -76,6 +79,7 @@
 		975411A0D5416D773A4B2317 /* SignalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalsView.swift; sourceTree = "<group>"; };
 		A1A31D015D166063BCD51FC2 /* DayTraderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTraderApp.swift; sourceTree = "<group>"; };
 		A5CAEFCFF468FCA6E321D99A /* TradeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradeViewModel.swift; sourceTree = "<group>"; };
+		A6AFE3CCE023622BC7294A20 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		A6B6818FDB5ACB33B9AFF40A /* MACDCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MACDCalculator.swift; sourceTree = "<group>"; };
 		ABFF8F20CEB126347526950A /* EMACalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMACalculator.swift; sourceTree = "<group>"; };
 		BD3803F003D734A7A5C62DD5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -232,6 +236,8 @@
 		E124223BAEC28A1887256B3D /* Networking */ = {
 			isa = PBXGroup;
 			children = (
+				08457B9E59643D48713379B3 /* AlpacaService.swift */,
+				A6AFE3CCE023622BC7294A20 /* KeychainService.swift */,
 				C5627E820D1FEAC7298A0794 /* MarketDataService.swift */,
 				2F58CF479E27DAEAEA7B48C8 /* MockMarketDataService.swift */,
 			);
@@ -350,6 +356,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1DE8F993EB875DF9848BFA4E /* ATRCalculator.swift in Sources */,
+				F879DE61942F504E4B9E3313 /* AlpacaService.swift in Sources */,
 				9981061E1F80C7314028AC29 /* BollingerBandCalculator.swift in Sources */,
 				D65FC8402526EE9F99DB260F /* ChartView.swift in Sources */,
 				A01138E09C1CE8348D52ED73 /* ChartViewModel.swift in Sources */,
@@ -359,6 +366,7 @@
 				0F26278D3A0EFCDAF7AF67E4 /* EMACalculator.swift in Sources */,
 				78CA4C05CD457399A4E1D5BB /* IndicatorEngine.swift in Sources */,
 				A29C58D0FFEA0C484E493528 /* IndicatorResult.swift in Sources */,
+				16FF923E24C636AB3CB170CB /* KeychainService.swift in Sources */,
 				710196CA181E4372987B814A /* MACDCalculator.swift in Sources */,
 				30524F0D87E1F3A85731463A /* MarketDataService.swift in Sources */,
 				734D06F19FCAE994B3B943AE /* MockMarketDataService.swift in Sources */,
@@ -512,7 +520,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.flame.pulsetrader.kiro;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flame.daytrader.app;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -530,7 +538,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.flame.pulsetrader.kiro;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flame.daytrader.app;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

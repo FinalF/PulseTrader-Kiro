@@ -1,0 +1,46 @@
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcworkspace/xcshareddata/
+*.xcworkspace/xcsettings
+
+# Build
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+*.resolved
+
+# CocoaPods (not used, but just in case)
+Pods/
+Podfile.lock
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+Thumbnails
+.Spotlight-V100
+.Trashes
+._*
+
+# Kiro IDE
+.kiro/settings/
+
+# Secrets — never commit real API keys
+# Configuration.swift contains only placeholders; keep it that way
+*.env
+secrets.plist

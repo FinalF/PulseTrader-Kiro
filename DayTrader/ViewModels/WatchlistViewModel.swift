@@ -27,6 +27,15 @@ final class WatchlistViewModel: ObservableObject {
         self.signalEngine = signalEngine
         self.stocks       = Stock.defaults
         loadWatchlist()
+        // Pre-populate prices from cache immediately (avoids "--" on first render)
+        if let mock = service as? MockMarketDataService {
+            for i in stocks.indices {
+                let sym = stocks[i].symbol
+                if let last = mock.barCache[sym]?.last {
+                    stocks[i].latestQuote = last
+                }
+            }
+        }
     }
 
     // MARK: - Public API

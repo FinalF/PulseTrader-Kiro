@@ -3,8 +3,8 @@ import Foundation
 import Combine
 
 enum Timeframe: String, CaseIterable {
-    case oneMin    = "1m"
-    case fiveMin   = "5m"
+    case oneMin     = "1m"
+    case fiveMin    = "5m"
     case fifteenMin = "15m"
 
     var minuteCount: Int {
@@ -23,14 +23,16 @@ final class ChartViewModel: ObservableObject {
     @Published var indicators: IndicatorBundle?
     @Published var signals: [TradeSignal] = []
     @Published var timeframe: Timeframe = .oneMin
+    @Published var range: ChartRange = .oneDay
     @Published var isLoading = true
+    @Published var errorMessage: String?
 
     let symbol: String
     private let service: MarketDataService
     private let signalEngine: SignalEngine
     private let signalsVM: SignalsViewModel
     private var cancellables = Set<AnyCancellable>()
-    private var rawBars: [Quote] = []   // always 1-min
+    private var intradayBars: [Quote] = []   // raw 1-min bars for intraday aggregation
 
     init(symbol: String,
          service: MarketDataService,
@@ -45,18 +47,7 @@ final class ChartViewModel: ObservableObject {
     // MARK: - Lifecycle
 
     func load() {
-        Task {
-            do {
-                let fetched = try await service.fetchBars(symbol: symbol,
-                                                          limit: Configuration.intraDayBarsToFetch)
-                rawBars = fetched
-                recomputeDisplay()
-                isLoading = false
-                subscribeToLive()
-            } catch {
-                isLoading = false
-            }
-        }
+        loadRange(range)
     }
 
     func changeTimeframe(_ tf: Timeframe) {
@@ -64,28 +55,68 @@ final class ChartViewModel: ObservableObject {
         recomputeDisplay()
     }
 
+    func changeRange(_ newRange: ChartRange) {
+        guard newRange != range else { return }
+        range = newRange
+        // Reset timeframe to sensible default when leaving intraday
+        if !newRange.isIntraday { timeframe = .oneMin }
+        loadRange(newRange)
+    }
+
     // MARK: - Private
+
+    private func loadRange(_ r: ChartRange) {
+        isLoading = true
+        errorMessage = nil
+        cancellables.removeAll()
+
+        Task {
+            do {
+                let fetched = try await service.fetchBars(symbol: symbol, range: r)
+                if r.isIntraday {
+                    intradayBars = fetched
+                    recomputeDisplay()
+                    subscribeToLive()
+                } else {
+                    // For multi-day, use bars directly (already aggregated by service)
+                    bars = fetched
+                    computeIndicatorsOnly(bars: fetched)
+                }
+                isLoading = false
+            } catch {
+                errorMessage = error.localizedDescription
+                isLoading = false
+            }
+        }
+    }
 
     private func subscribeToLive() {
         service.quotePublisher(for: symbol)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] quote in
-                guard let self else { return }
-                self.rawBars.append(quote)
+                guard let self, self.range.isIntraday else { return }
+                self.intradayBars.append(quote)
                 self.recomputeDisplay()
             }
             .store(in: &cancellables)
     }
 
     private func recomputeDisplay() {
-        let aggregated = aggregate(rawBars, minutesPerBar: timeframe.minuteCount)
+        let aggregated = aggregate(intradayBars, minutesPerBar: timeframe.minuteCount)
         bars = aggregated
+        computeIndicatorsAndSignals(bars: aggregated)
+    }
 
-        guard let bundle = IndicatorEngine.compute(quotes: aggregated) else { return }
+    private func computeIndicatorsOnly(bars: [Quote]) {
+        guard let bundle = IndicatorEngine.compute(quotes: bars) else { return }
         indicators = bundle
+    }
 
-        let barIndex = aggregated.count - 1
-        if let signal = signalEngine.evaluate(quotes: aggregated,
+    private func computeIndicatorsAndSignals(bars: [Quote]) {
+        guard let bundle = IndicatorEngine.compute(quotes: bars) else { return }
+        indicators = bundle
+        let barIndex = bars.count - 1
+        if let signal = signalEngine.evaluate(quotes: bars,
                                                indicators: bundle,
                                                barIndex: barIndex) {
             signals.append(signal)
@@ -101,16 +132,13 @@ final class ChartViewModel: ObservableObject {
         while i < oneMins.count {
             let slice = Array(oneMins[i..<min(i + minutesPerBar, oneMins.count)])
             guard let first = slice.first, let last = slice.last else { break }
-            let high   = slice.map { $0.high }.max() ?? first.high
-            let low    = slice.map { $0.low  }.min() ?? first.low
-            let volume = slice.map { $0.volume }.reduce(0, +)
             result.append(Quote(symbol: first.symbol,
                                 timestamp: first.timestamp,
                                 open: first.open,
-                                high: high,
-                                low: low,
+                                high: slice.map(\.high).max() ?? first.high,
+                                low:  slice.map(\.low ).min() ?? first.low,
                                 close: last.close,
-                                volume: volume,
+                                volume: slice.map(\.volume).reduce(0, +),
                                 previousClose: first.previousClose))
             i += minutesPerBar
         }

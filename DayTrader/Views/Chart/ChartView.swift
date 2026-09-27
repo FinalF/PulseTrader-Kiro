@@ -12,18 +12,25 @@ struct ChartView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Timeframe picker
-            Picker("Timeframe", selection: Binding(
-                get: { vm.timeframe },
-                set: { vm.changeTimeframe($0) }
-            )) {
-                ForEach(Timeframe.allCases, id: \.self) { tf in
-                    Text(tf.rawValue).tag(tf)
+            // Range selector (1D / 5D / 1M / 3M / 1Y)
+            rangeSelector
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+            // Timeframe picker — only relevant for 1D intraday view
+            if vm.range.isIntraday {
+                Picker("Timeframe", selection: Binding(
+                    get: { vm.timeframe },
+                    set: { vm.changeTimeframe($0) }
+                )) {
+                    ForEach(Timeframe.allCases, id: \.self) { tf in
+                        Text(tf.rawValue).tag(tf)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 4)
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
 
             if vm.isLoading {
                 ProgressView("Loading chart…")
@@ -52,6 +59,34 @@ struct ChartView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Range selector
+
+    private var rangeSelector: some View {
+        HStack(spacing: 0) {
+            ForEach(ChartRange.allCases, id: \.self) { r in
+                Button {
+                    vm.changeRange(r)
+                } label: {
+                    Text(r.rawValue)
+                        .font(.system(size: 13, weight: vm.range == r ? .bold : .regular))
+                        .foregroundStyle(vm.range == r ? Color.accentColor : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(
+                            vm.range == r
+                            ? Color.accentColor.opacity(0.12)
+                            : Color.clear
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Show \(r.rawValue) chart")
+            }
+        }
+        .background(Color.panelBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Indicator tooltip

@@ -26,10 +26,28 @@ final class AlpacaService: MarketDataService {
     // MARK: - MarketDataService
 
     func fetchBars(symbol: String, limit: Int) async throws -> [Quote] {
-        // Alpaca historical bars endpoint: /v2/stocks/{symbol}/bars
+        return try await fetchAlpacaBars(symbol: symbol, timeframe: "1Min",
+                                          start: sessionStartISO(), limit: limit)
+    }
+
+    func fetchBars(symbol: String, range: ChartRange) async throws -> [Quote] {
+        let start = ISO8601DateFormatter().string(
+            from: Calendar.current.date(byAdding: .day,
+                                         value: -range.calendarDays,
+                                         to: Date())!
+        )
+        return try await fetchAlpacaBars(symbol: symbol,
+                                          timeframe: range.alpacaTimeframe,
+                                          start: start,
+                                          limit: range.barLimit)
+    }
+
+    private func fetchAlpacaBars(symbol: String, timeframe: String,
+                                   start: String, limit: Int) async throws -> [Quote] {
         var components = URLComponents(string: "\(baseURL)/v2/stocks/\(symbol)/bars")!
         components.queryItems = [
-            URLQueryItem(name: "timeframe", value: "1Min"),
+            URLQueryItem(name: "timeframe", value: timeframe),
+            URLQueryItem(name: "start",     value: start),
             URLQueryItem(name: "limit",     value: "\(min(limit, 1000))"),
             URLQueryItem(name: "feed",      value: "iex"),
             URLQueryItem(name: "sort",      value: "asc"),
@@ -132,6 +150,11 @@ final class AlpacaService: MarketDataService {
     }
 
     // MARK: - Helpers
+
+    private func sessionStartISO() -> String {
+        let start = Calendar.current.startOfDay(for: Date()).addingTimeInterval(9.5 * 3600)
+        return ISO8601DateFormatter().string(from: start)
+    }
 
     private func validateHTTP(_ response: URLResponse) throws {
         guard let http = response as? HTTPURLResponse else { return }

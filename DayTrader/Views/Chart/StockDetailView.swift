@@ -67,7 +67,7 @@ struct StockDetailView: View {
 
     private func priceHeader(stock: Stock) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(stock.displayPrice)
                         .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
@@ -75,10 +75,37 @@ struct StockDetailView: View {
                         .font(.title3.monospacedDigit())
                         .foregroundStyle(Color.forChange(stock.changePercent))
                 }
-                // Live clock
-                Text(Date(), style: .time)
-                    .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                // Live date + time + market status badge
+                HStack(spacing: 6) {
+                    // Full date and time, ticking every second via .timer style
+                    Text(Date(), format: .dateTime
+                            .month(.abbreviated).day()
+                            .hour(.defaultDigits(amPM: .abbreviated)).minute().second())
+                        .font(.system(size: 12).monospacedDigit())
+                        .foregroundStyle(.secondary)
+
+                    // Status badge — only shown when market is NOT open
+                    if !MarketHours.isOpen {
+                        Text(MarketHours.statusLabel)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Color.orange)
+                            .clipShape(Capsule())
+                    } else {
+                        // Green dot when market is live
+                        HStack(spacing: 3) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 6, height: 6)
+                            Text("Market Open")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color.green)
+                        }
+                    }
+                }
+                .accessibilityLabel(MarketHours.isOpen ? "Market is open" : MarketHours.statusLabel)
             }
 
             Spacer()

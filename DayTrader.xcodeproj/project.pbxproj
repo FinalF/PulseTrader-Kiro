@@ -30,6 +30,7 @@
 		84F3AB314848A0206E62D1B5 /* TradingColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0270D55C31DE1A3CA5E1D3 /* TradingColors.swift */; };
 		869E9FB24240A2EA417C125E /* VolumeSMACalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F085A6BF88D08E03177D9772 /* VolumeSMACalculator.swift */; };
 		9981061E1F80C7314028AC29 /* BollingerBandCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9D34E4FB2C06B484D3213C /* BollingerBandCalculator.swift */; };
+		99C986A36B37E90018FA8343 /* MarketHours.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34DC19E36F175284290E7AE1 /* MarketHours.swift */; };
 		9DCDCFE5DD1A53E6881119B0 /* SignalsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 665A8880E13DB0C44025E258 /* SignalsViewModel.swift */; };
 		A01138E09C1CE8348D52ED73 /* ChartViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A460F89F3C341E612D95C7D /* ChartViewModel.swift */; };
 		A29C58D0FFEA0C484E493528 /* IndicatorResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A13EC9C2DB2A89C98FC992C /* IndicatorResult.swift */; };
@@ -67,6 +68,7 @@
 		2AAE3F58133FBF0B0FCC8C23 /* DayTraderTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DayTraderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E31DEF71EA9C4DCE2FED114 /* TradeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradeView.swift; sourceTree = "<group>"; };
 		2F58CF479E27DAEAEA7B48C8 /* MockMarketDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockMarketDataService.swift; sourceTree = "<group>"; };
+		34DC19E36F175284290E7AE1 /* MarketHours.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketHours.swift; sourceTree = "<group>"; };
 		46EEA467A2B4C5185E1C5E2A /* SMACalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMACalculator.swift; sourceTree = "<group>"; };
 		4A13EC9C2DB2A89C98FC992C /* IndicatorResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndicatorResult.swift; sourceTree = "<group>"; };
 		4DAECCA6B3C2FF64744E2FF3 /* SignalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalEngine.swift; sourceTree = "<group>"; };
@@ -86,7 +88,7 @@
 		C5627E820D1FEAC7298A0794 /* MarketDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketDataService.swift; sourceTree = "<group>"; };
 		C64BCFDD6A788397F4C504FA /* PortfolioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioView.swift; sourceTree = "<group>"; };
 		D056148A731AE70A4CB643D6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		D2181E2273AC087C7E4DE742 /* DayTrader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DayTrader.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2181E2273AC087C7E4DE742 /* DayTrader.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DayTrader.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D40942E98EB8A267C5FB63DE /* WatchlistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchlistView.swift; sourceTree = "<group>"; };
 		E947DC341D23FA36CDC3EC5A /* Stock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stock.swift; sourceTree = "<group>"; };
 		E9B26AC140B031DE5A5C7E6A /* RSICalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSICalculator.swift; sourceTree = "<group>"; };
@@ -124,6 +126,7 @@
 			children = (
 				6F7315B75A8F61741E519491 /* Configuration.swift */,
 				BD3803F003D734A7A5C62DD5 /* Info.plist */,
+				34DC19E36F175284290E7AE1 /* MarketHours.swift */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -318,6 +321,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
+					A1795365EBBF7ED2C18CD73E = {
+						DevelopmentTeam = "";
+					};
 					C926C7997AF346EC56FE9C4F = {
 						DevelopmentTeam = "";
 					};
@@ -369,6 +375,7 @@
 				16FF923E24C636AB3CB170CB /* KeychainService.swift in Sources */,
 				710196CA181E4372987B814A /* MACDCalculator.swift in Sources */,
 				30524F0D87E1F3A85731463A /* MarketDataService.swift in Sources */,
+				99C986A36B37E90018FA8343 /* MarketHours.swift in Sources */,
 				734D06F19FCAE994B3B943AE /* MockMarketDataService.swift in Sources */,
 				AE83034F4E24003B19094F35 /* Portfolio.swift in Sources */,
 				631235F9813145F91342B91B /* PortfolioView.swift in Sources */,
@@ -513,14 +520,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = THYJWQK267;
 				INFOPLIST_FILE = DayTrader/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.flame.daytrader.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daytrader.app;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -531,14 +537,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = THYJWQK267;
 				INFOPLIST_FILE = DayTrader/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.flame.daytrader.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daytrader.app;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

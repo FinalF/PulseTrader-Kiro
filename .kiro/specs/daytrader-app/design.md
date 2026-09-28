@@ -2,27 +2,38 @@
 
 ## Architecture Overview
 
-DayTrader follows the **MVVM + Combine** pattern across all modules. SwiftUI views observe ViewModels that expose `@Published` state. Business logic (indicator computation, signal evaluation) lives in pure, testable service classes that ViewModels call via `async/await`.
+> **Last updated:** Sep 28, 2026 — reflects the app as built and running on device.
+> For exact indicator/signal formulas see `algorithm.md`.
+
+PulseTrader (codename DayTrader) follows the **MVVM + Combine** pattern. SwiftUI views observe `@MainActor` ViewModels that expose `@Published` state. Business logic (indicator computation, signal evaluation) lives in pure, stateless functions that ViewModels call via `async/await`.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                     SwiftUI Views                    │
-│  WatchlistView · ChartView · SignalsView · TradeView │
-└────────────────────────┬────────────────────────────┘
-                         │ @StateObject / @ObservedObject
-┌────────────────────────▼────────────────────────────┐
-│                     ViewModels                       │
-│  WatchlistVM · ChartVM · SignalsVM · TradeVM         │
-└──────┬──────────────┬──────────────┬────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                        SwiftUI Views                        │
+│  WatchlistView · ChartView · SignalsView · Portfolio ·      │
+│  SettingsView · IndicatorBreakdownView                      │
+└────────────────────────┬────────────────────────────────────┘
+                         │ @StateObject / @EnvironmentObject
+┌────────────────────────▼────────────────────────────────────┐
+│                        ViewModels (@MainActor)              │
+│  WatchlistVM · ChartVM · SignalsVM · TradeVM                │
+└──────┬──────────────┬──────────────┬───────────────────────┘
        │              │              │
        ▼              ▼              ▼
- MarketData     Indicator        Signal
- Service        Engine           Engine
+ MarketData     IndicatorEngine   SignalEngine
+ Service        (8 calculators)   (6 weighted rules)
        │
        ▼
- API Client (URLSession / WebSocket)
- Alpha Vantage | Polygon.io | Mock
+ AlpacaService (REST + WebSocket)  |  MockMarketDataService (GBM)
+       │
+       ▼
+ KeychainService (API key storage)
 ```
+
+**AppServices** (in `DayTraderApp.swift`) is a global enum that resolves the
+`MarketDataService` singleton once at launch: `AlpacaService` if Keychain has
+credentials, otherwise `MockMarketDataService`. Both `WatchlistViewModel` and each
+`ChartViewModel` share this same instance.
 
 ---
 
@@ -32,27 +43,32 @@ DayTrader follows the **MVVM + Combine** pattern across all modules. SwiftUI vie
 
 #### `Quote` — single OHLCV bar
 ```swift
-struct Quote: Identifiable, Codable {
+struct Quote: Identifiable, Codable, Equatable {
     let id: UUID
     let symbol: String
     let timestamp: Date
     let open, high, low, close: Double
     let volume: Int
-    var previousClose: Double   // for % change on first bar
+    var previousClose: Double?   // nil = no prior close (first bar of session)
+
+    var typicalPrice: Double { (high + low + close) / 3 }
+    var isGreen: Bool?          // nil for doji (open == close)
 }
 ```
 
-#### `IndicatorResult` — union of all indicator outputs
+#### `IndicatorBundle` — all indicator outputs for one bar series
+Indicators are exposed as a single struct of aligned `[Double?]` arrays (leading nils
+for warm-up), NOT an enum. `IndicatorEngine.compute(quotes:)` returns this bundle.
 ```swift
-enum IndicatorResult {
-    case sma(period: Int, values: [Double])
-    case ema(period: Int, values: [Double])
-    case macd(line: [Double], signal: [Double], histogram: [Double])
-    case rsi(period: Int, values: [Double])
-    case bollingerBands(upper: [Double], middle: [Double], lower: [Double])
-    case atr(period: Int, values: [Double])
-    case volumeSMA(period: Int, values: [Double])
-    case vwap(values: [Double])
+struct IndicatorBundle {
+    let ema9:      [Double?]
+    let sma20:     [Double?]
+    let macd:      MACDCalculator.Result   // line, signal, histogram
+    let rsi:       [Double?]
+    let bb:        BollingerBandCalculator.Result  // upper, middle, lower, bandwidth, %B
+    let atr:       [Double?]
+    let volumeSMA: [Double?]
+    let vwap:      [Double?]
 }
 ```
 
@@ -116,32 +132,36 @@ struct Portfolio: Codable {
 
 #### `MarketDataService` protocol
 ```swift
-protocol MarketDataService {
-    /// Fetch historical 1-min bars for the current/last session
+protocol MarketDataService: AnyObject {   // AnyObject → allows weak refs
     func fetchBars(symbol: String, limit: Int) async throws -> [Quote]
-
-    /// Publisher that emits a new Quote whenever a fresh bar closes
+    func fetchBars(symbol: String, range: ChartRange) async throws -> [Quote]
+    func fetchLatestQuote(symbol: String) async throws -> Quote?
     func quotePublisher(for symbol: String) -> AnyPublisher<Quote, Never>
 }
 ```
 
-Two concrete implementations plus a mock:
+`ChartRange` is `1D / 5D / 1M / 3M / 1Y`, each mapping to an Alpaca timeframe
+(`1Min / 15Min / 1Hour / 1Day`) and a look-back window.
 
 | Class | Transport | Notes |
 |-------|-----------|-------|
-| `AlphaVantageService` | HTTPS REST | Polling; parses `TIME_SERIES_INTRADAY` JSON |
-| `PolygonService` | HTTPS REST + WebSocket | REST for history, WS for real-time ticks |
-| `MockMarketDataService` | In-process timer | Replays a pre-recorded session at real speed |
+| `AlpacaService` | HTTPS REST + WebSocket | REST `/v2/stocks/{sym}/bars` for history; WS `stream.data.alpaca.markets/v2/iex` for live 1-min bars. IEX feed (free tier). |
+| `MockMarketDataService` | In-process timer | Geometric Brownian Motion; generates intraday + multi-day bars; 1 bar/sec replay for demo. |
 
-#### `APIClient` — generic URLSession wrapper
-```swift
-final class APIClient {
-    func fetch<T: Decodable>(_ request: URLRequest) async throws -> T
-    // Handles: rate-limit retry, exponential back-off, error mapping
-}
-```
+**Provider selection:** `AppServices.marketData` chooses Alpaca when
+`KeychainService.hasAlpacaCredentials` is true, else Mock. Resolved once at launch.
 
-API keys are read from the iOS **Keychain** (never UserDefaults). A `KeychainService` helper wraps `SecItemAdd/SecItemCopyMatching`.
+**Key API details learned in implementation:**
+- Alpaca returns `{"bars": null}` (not `[]`) when there is no data → `AlpacaBarsResponse.bars`
+  is `[AlpacaBar]?` and treated as empty.
+- The `next_page_token` field is snake_case (must match exactly for Codable).
+- `1D` fetch uses the **last trading day** (walks back over weekends), and the reliable
+  rolling-window `fetchBars(range:)` is used everywhere — `fetchBars(limit:)` with a
+  strict 09:30-ET-today start returns empty on the IEX free tier after hours.
+
+API keys are stored in the iOS **Keychain** (`KeychainService`, wrapping
+`SecItemAdd/SecItemCopyMatching`), entered by the user in Settings. Never in source
+or UserDefaults.
 
 ---
 
@@ -171,29 +191,23 @@ IndicatorEngine (struct, stateless)
 
 ```swift
 final class SignalEngine {
-    func evaluate(
-        bars: [Quote],
-        indicators: [IndicatorResult],
-        config: SignalConfiguration
-    ) -> TradeSignal?
+    // Emits a signal only if confluence clears the threshold
+    func evaluate(quotes: [Quote], indicators: IndicatorBundle,
+                  barIndex: Int) -> TradeSignal?
+
+    // Always returns per-rule scores (used by IndicatorBreakdownView),
+    // regardless of whether a signal fires
+    func breakdown(quotes: [Quote], indicators: IndicatorBundle) -> SignalBreakdown?
 }
 ```
 
-**Scoring rules (v1):**
+**The full scoring algorithm — rules, weights, confluence math, ATR stops, and
+cooldown — is documented in `algorithm.md`.** Summary: 6 weighted rules
+(RSI 0.25, MACD 0.25, BB 0.20, EMA9 0.15, VWAP 0.10, Volume 0.05) → weighted confluence
+score; signal fires at ≥ 0.60; ATR-based 1.5×/3.0× stop/target; 5-bar cooldown.
 
-| Rule | Weight | Buy condition | Sell condition |
-|------|--------|--------------|----------------|
-| RSI extreme | 0.25 | RSI < oversold (30) | RSI > overbought (70) |
-| MACD crossover | 0.25 | MACD line crosses above signal | MACD line crosses below signal |
-| Bollinger touch | 0.20 | Close ≤ lower band | Close ≥ upper band |
-| EMA9 cross | 0.15 | Close crosses above EMA9 | Close crosses below EMA9 |
-| VWAP relation | 0.10 | Close crosses above VWAP | Close crosses below VWAP |
-| Volume confirmation | 0.05 | Volume > vol SMA | Volume > vol SMA |
-
-- Weighted sum → **confluence score** 0–1
-- Signal fires when score ≥ `config.minConfluenceScore` (default 0.6)
-- Stop-loss = entry − (ATR × 1.5); Take-profit = entry + (ATR × 3.0)
-- **Cooldown:** no re-signal for same symbol+direction within 5 bars
+`SignalBreakdown` / `RuleBreakdown` are public types so the UI can show live per-rule
+results (which indicator voted which way, and why) even when no signal fires.
 
 ---
 
@@ -207,10 +221,13 @@ final class SignalEngine {
 
 #### `ChartViewModel`
 - `@Published var bars: [Quote]`
-- `@Published var indicatorResults: [IndicatorResult]`
+- `@Published var indicators: IndicatorBundle?`
 - `@Published var signals: [TradeSignal]`
-- `@Published var selectedTimeframe: Timeframe` (._1min | ._5min | ._15min)
-- Aggregates 1-min bars to requested timeframe on the fly
+- `@Published var signalBreakdown: SignalBreakdown?` (live per-rule scores)
+- `@Published var timeframe: Timeframe` (1m / 5m / 15m — used only on 1D range)
+- `@Published var range: ChartRange` (1D / 5D / 1M / 3M / 1Y)
+- Aggregates 1-min bars to the requested timeframe; filters to trading hours;
+  subscribes to the live WebSocket only when range == 1D
 
 #### `SignalsViewModel`
 - `@Published var allSignals: [TradeSignal]`
@@ -316,3 +333,44 @@ enum DayTraderError: Error {
 | ViewModels | XCTest + `XCTestExpectation` for Combine publishers |
 | Networking | Protocol-injected mocks; no live network calls in tests |
 | UI | SwiftUI Previews for visual spot-check; no XCUITest in v1 |
+
+---
+
+### 11. Key Implementation Decisions & Gotchas
+
+Lessons captured during development so they aren't re-litigated:
+
+**`Stock` Equatable must compare quote/signal fields.**
+SwiftUI uses `==` to decide whether to redraw a row. An early version compared only
+`id`, so when a stock's `latestQuote` changed from nil → a real price, SwiftUI saw the
+two `Stock` values as "equal" and skipped the redraw — the watchlist price was stuck at
+`--` on device (it only worked in the simulator because mock data filled the price at
+init). `Stock.==` now also compares `latestQuote.close`, `previousClose`, and
+`latestSignal.id`.
+
+**Charts use an integer index X-axis, not `Date`.**
+Swift Charts plots real time on a continuous axis, which leaves ugly gaps over weekends
+and overnight. All chart marks use the bar's array **index** as X; the timestamp is only
+shown in the drag tooltip. This compresses out non-trading time.
+
+**Indicator overlay lines need a `series:` identifier.**
+Multiple `LineMark`s that share the same y-value label get coalesced by Swift Charts into
+one series and rendered in a single color. Each overlay (BB, EMA9, VWAP) now passes a
+distinct `series: .value("s", …)` plus `.chartForegroundStyleScale` to keep colors apart.
+
+**Trading-hours filtering is split by range.**
+`filterIntradayHours` (1D) strips weekends AND pre/after-market bars (09:30–16:00 ET).
+`stripWeekends` (5D/1M/3M/1Y) only removes weekends — applying the intraday time filter
+to hourly/daily bars would delete everything.
+
+**Watchlist persistence replaces, not merges.**
+`loadWatchlist()` fully replaces the default list with the saved symbols when one exists,
+so stocks the user removed stay removed across launches.
+
+**Serial price fetch on launch.**
+Watchlist symbols are fetched serially (not concurrently) to avoid Alpaca free-tier rate
+limiting when the list is large.
+
+**Timezone.**
+All market-hours logic uses `America/New_York` (DST-aware) via `MarketHours` and the
+chart/service filters — never the device's local timezone.

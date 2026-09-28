@@ -45,7 +45,7 @@ enum ChartRange: String, CaseIterable {
     }
 }
 
-protocol MarketDataService {
+protocol MarketDataService: AnyObject {
     /// Fetch bars for the current/last session (intraday, 1-min)
     func fetchBars(symbol: String, limit: Int) async throws -> [Quote]
 

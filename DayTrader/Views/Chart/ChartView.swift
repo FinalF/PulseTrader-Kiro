@@ -189,6 +189,32 @@ struct ChartView: View {
         }
     }
 
+    // MARK: - Chart legend
+
+    private var chartLegend: some View {
+        HStack(spacing: 8) {
+            legendItem("BB", Color.indicatorBB)
+            legendItem("EMA9", Color.indicatorEMA9)
+            legendItem("VWAP", Color.indicatorVWAP)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(4)
+    }
+
+    private func legendItem(_ label: String, _ color: Color) -> some View {
+        HStack(spacing: 3) {
+            RoundedRectangle(cornerRadius: 1)
+                .fill(color)
+                .frame(width: 12, height: 2)
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(color)
+        }
+    }
+
     // MARK: - Price panel (index X-axis → no weekend gaps)
 
     private var pricePanel: some View {
@@ -211,52 +237,44 @@ struct ChartView: View {
                 .foregroundStyle(isGreen ? Color.gain : Color.loss)
             }
 
-            // BB — solid envelope: filled area between upper/lower, solid border lines
+            // BB — light fill + distinct steel-blue border lines
             if let bb = vm.indicators?.bb {
-                // Collect paired upper/lower points
                 let pairs: [(Int, Double, Double)] = vm.bars.indices.compactMap { i in
                     guard let u = bb.upper[safe: i] ?? nil,
                           let l = bb.lower[safe: i] ?? nil else { return nil }
                     return (i, u, l)
                 }
-                // Fill area between bands
                 ForEach(pairs, id: \.0) { i, upper, lower in
-                    AreaMark(
-                        x: .value("i", i),
-                        yStart: .value("BBL", lower),
-                        yEnd:   .value("BBU", upper)
-                    )
-                    .foregroundStyle(Color.blue.opacity(0.05))
+                    AreaMark(x: .value("i", i), yStart: .value("BBL", lower), yEnd: .value("BBU", upper))
+                        .foregroundStyle(Color.indicatorBB.opacity(0.06))
                 }
-                // Upper band line
                 ForEach(pairs, id: \.0) { i, upper, _ in
                     LineMark(x: .value("i", i), y: .value("BB↑", upper))
-                        .foregroundStyle(Color.blue.opacity(0.5))
+                        .foregroundStyle(Color.indicatorBB.opacity(0.6))
                         .lineStyle(StrokeStyle(lineWidth: 1))
                 }
-                // Lower band line
                 ForEach(pairs, id: \.0) { i, _, lower in
                     LineMark(x: .value("i", i), y: .value("BB↓", lower))
-                        .foregroundStyle(Color.blue.opacity(0.5))
+                        .foregroundStyle(Color.indicatorBB.opacity(0.6))
                         .lineStyle(StrokeStyle(lineWidth: 1))
                 }
             }
-            // EMA9
+            // EMA9 — orange
             if let ema9 = vm.indicators?.ema9 {
                 ForEach(Array(vm.bars.enumerated()), id: \.offset) { i, _ in
                     if let v = ema9[safe: i] ?? nil {
                         LineMark(x: .value("i", i), y: .value("EMA9", v))
-                            .foregroundStyle(Color.orange.opacity(0.8))
+                            .foregroundStyle(Color.indicatorEMA9)
                             .lineStyle(StrokeStyle(lineWidth: 1.5))
                     }
                 }
             }
-            // VWAP
+            // VWAP — purple
             if let vwap = vm.indicators?.vwap {
                 ForEach(Array(vm.bars.enumerated()), id: \.offset) { i, _ in
                     if let v = vwap[safe: i] ?? nil {
                         LineMark(x: .value("i", i), y: .value("VWAP", v))
-                            .foregroundStyle(Color.purple.opacity(0.8))
+                            .foregroundStyle(Color.indicatorVWAP)
                             .lineStyle(StrokeStyle(lineWidth: 1.5))
                     }
                 }
@@ -301,6 +319,7 @@ struct ChartView: View {
             }
         }
         .background(Color.chartBackground)
+        .overlay(alignment: .topLeading) { chartLegend }
         .accessibilityLabel("Price chart for \(vm.symbol)")
     }
 
@@ -315,13 +334,13 @@ struct ChartView: View {
                 }
                 if let l = vm.indicators?.macd.line[safe: i] ?? nil {
                     LineMark(x: .value("i", i), y: .value("M", l))
-                        .foregroundStyle(Color.blue)
+                        .foregroundStyle(Color.indicatorMACD)
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                         .interpolationMethod(.catmullRom)
                 }
                 if let s = vm.indicators?.macd.signal[safe: i] ?? nil {
                     LineMark(x: .value("i", i), y: .value("S", s))
-                        .foregroundStyle(Color.orange)
+                        .foregroundStyle(Color.indicatorSig)
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                         .interpolationMethod(.catmullRom)
                 }
@@ -357,7 +376,7 @@ struct ChartView: View {
             ForEach(Array(vm.bars.enumerated()), id: \.offset) { i, _ in
                 if let r = vm.indicators?.rsi[safe: i] ?? nil {
                     LineMark(x: .value("i", i), y: .value("RSI", r))
-                        .foregroundStyle(Color.purple)
+                        .foregroundStyle(Color.indicatorRSI)
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                         .interpolationMethod(.catmullRom)
                 }

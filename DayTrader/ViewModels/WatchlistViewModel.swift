@@ -27,12 +27,31 @@ final class WatchlistViewModel: ObservableObject {
         self.signalEngine = signalEngine
         self.stocks       = Stock.defaults
         loadWatchlist()
-        // Pre-populate prices from cache immediately (avoids "--" on first render)
+        // Pre-populate prices immediately on init (avoids "--" on first render)
         if let mock = service as? MockMarketDataService {
+            // Mock: use pre-generated cache synchronously
             for i in stocks.indices {
                 let sym = stocks[i].symbol
                 if let last = mock.barCache[sym]?.last {
                     stocks[i].latestQuote = last
+                }
+            }
+        } else {
+            // Real service (Alpaca): fetch latest quote for all symbols right away
+            let symbols = stocks.map(\.symbol)
+            Task {
+                await withTaskGroup(of: (String, Quote?).self) { group in
+                    for sym in symbols {
+                        group.addTask { [weak service] in
+                            let q = try? await service?.fetchLatestQuote(symbol: sym)
+                            return (sym, q)
+                        }
+                    }
+                    for await (sym, quote) in group {
+                        if let quote, let idx = self.stocks.firstIndex(where: { $0.symbol == sym }) {
+                            self.stocks[idx].latestQuote = quote
+                        }
+                    }
                 }
             }
         }

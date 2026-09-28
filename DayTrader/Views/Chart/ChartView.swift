@@ -38,14 +38,19 @@ struct ChartView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle).foregroundStyle(.orange)
-                    Text(err)
-                        .font(.subheadline).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                    ScrollView {
+                        Text(err)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxHeight: 200)
                     Button("Retry") { vm.load() }
                         .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
             } else if vm.bars.isEmpty {
                 Text("No data")
                     .foregroundStyle(.secondary)

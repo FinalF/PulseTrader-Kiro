@@ -79,8 +79,12 @@ final class ChartViewModel: ObservableObject {
                     // 1D — filter to trading hours, then aggregate by timeframe
                     intradayBars = filterIntradayHours(fetched)
                     print("[Chart] after trading-hours filter: \(intradayBars.count) bars")
-                    recomputeDisplay()
-                    subscribeToLive()
+                    if intradayBars.isEmpty {
+                        errorMessage = "No data for this session — market may be closed or it's a holiday. Try 5D to see the last session."
+                    } else {
+                        recomputeDisplay()
+                        subscribeToLive()
+                    }
                 } else {
                     // 5D/1M/3M/1Y — bars are already at correct granularity,
                     // just strip weekends (no time-of-day filtering)

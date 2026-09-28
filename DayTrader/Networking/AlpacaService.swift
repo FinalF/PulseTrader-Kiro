@@ -26,8 +26,10 @@ final class AlpacaService: MarketDataService {
     // MARK: - MarketDataService
 
     func fetchBars(symbol: String, limit: Int) async throws -> [Quote] {
+        // Use last trading day (skip weekends) instead of always today
+        let start = lastTradingDayStartISO()
         return try await fetchAlpacaBars(symbol: symbol, timeframe: "1Min",
-                                          start: sessionStartISO(), limit: limit)
+                                          start: start, limit: limit)
     }
 
     func fetchBars(symbol: String, range: ChartRange) async throws -> [Quote] {
@@ -57,26 +59,23 @@ final class AlpacaService: MarketDataService {
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateHTTP(response)
 
-        // Debug: print raw JSON to see actual structure
-        if let raw = String(data: data, encoding: .utf8) {
-            print("[Alpaca] \(symbol) raw response (first 500 chars): \(String(raw.prefix(500)))")
-        }
+        // Always print full raw response for debugging
+        let raw = String(data: data, encoding: .utf8) ?? "<binary>"
+        print("[Alpaca RAW] \(symbol) \(timeframe):\n\(raw)\n")
 
-        let decoder = JSONDecoder()
-        let decoded: AlpacaBarsResponse
         do {
-            decoded = try decoder.decode(AlpacaBarsResponse.self, from: data)
+            let decoded = try JSONDecoder().decode(AlpacaBarsResponse.self, from: data)
+            var quotes = decoded.bars.map { $0.toQuote(symbol: symbol) }
+            for i in quotes.indices where i > 0 {
+                quotes[i].previousClose = quotes[i - 1].close
+            }
+            print("[Alpaca OK] \(symbol): \(quotes.count) bars decoded")
+            return quotes
         } catch {
-            print("[Alpaca] Decode error: \(error)")
-            throw AlpacaError.decodingFailed(error.localizedDescription)
+            // Show the full decode error AND the raw JSON in the app
+            print("[Alpaca DECODE FAIL] \(error)")
+            throw AlpacaError.decodingFailed("[\(symbol)] \(error)\n\nRaw: \(raw.prefix(300))")
         }
-
-        // Wire up previousClose: each bar's previousClose = previous bar's close
-        var quotes = decoded.bars.map { $0.toQuote(symbol: symbol) }
-        for i in quotes.indices where i > 0 {
-            quotes[i].previousClose = quotes[i - 1].close
-        }
-        return quotes
     }
 
     func quotePublisher(for symbol: String) -> AnyPublisher<Quote, Never> {
@@ -172,16 +171,26 @@ final class AlpacaService: MarketDataService {
         return f
     }()
 
-    private func sessionStartISO() -> String {
-        // 09:30 ET today
+    /// 09:30 ET of the most recent trading day (skips weekends)
+    private func lastTradingDayStartISO() -> String {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = Self.easternTZ
-        let now = Date()
-        var comps = cal.dateComponents([.year, .month, .day], from: now)
+        var date = Date()
+        // Walk backwards until we find a weekday
+        for _ in 0..<7 {
+            let weekday = cal.component(.weekday, from: date)
+            if weekday >= 2 && weekday <= 6 { break }
+            date = cal.date(byAdding: .day, value: -1, to: date) ?? date
+        }
+        var comps = cal.dateComponents([.year, .month, .day], from: date)
         comps.hour = 9; comps.minute = 30; comps.second = 0
         comps.timeZone = Self.easternTZ
-        let start = cal.date(from: comps) ?? now
+        let start = cal.date(from: comps) ?? date
         return Self.isoFormatter.string(from: start)
+    }
+
+    private func sessionStartISO() -> String {
+        lastTradingDayStartISO()
     }
 
     private func daysAgoISO(_ days: Int) -> String {

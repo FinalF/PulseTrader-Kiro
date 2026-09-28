@@ -67,12 +67,19 @@ struct StockDetailView: View {
 
     private func priceHeader(stock: Stock) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(stock.displayPrice)
-                .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
-
-            Text(stock.displayChangePercent)
-                .font(.title3.monospacedDigit())
-                .foregroundStyle(Color.forChange(stock.changePercent))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(stock.displayPrice)
+                        .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
+                    Text(stock.displayChangePercent)
+                        .font(.title3.monospacedDigit())
+                        .foregroundStyle(Color.forChange(stock.changePercent))
+                }
+                // Live clock
+                Text(Date(), style: .time)
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 

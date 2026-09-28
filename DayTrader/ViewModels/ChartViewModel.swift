@@ -73,15 +73,27 @@ final class ChartViewModel: ObservableObject {
         Task {
             do {
                 let fetched = try await service.fetchBars(symbol: symbol, range: r)
+                print("[Chart] \(symbol) \(r.rawValue): fetched \(fetched.count) bars")
+
                 if r.isIntraday {
-                    intradayBars = filterTradingHours(fetched)
+                    // 1D — filter to trading hours, then aggregate by timeframe
+                    intradayBars = filterIntradayHours(fetched)
+                    print("[Chart] after trading-hours filter: \(intradayBars.count) bars")
                     recomputeDisplay()
                     subscribeToLive()
                 } else {
-                    computeIndicatorsOnly(bars: fetched)
+                    // 5D/1M/3M/1Y — bars are already at correct granularity,
+                    // just strip weekends (no time-of-day filtering)
+                    let filtered = stripWeekends(fetched)
+                    print("[Chart] after weekend strip: \(filtered.count) bars")
+                    bars = filtered
+                    if let bundle = IndicatorEngine.compute(quotes: filtered) {
+                        indicators = bundle
+                    }
                 }
                 isLoading = false
             } catch {
+                print("[Chart] ERROR \(symbol) \(r.rawValue): \(error)")
                 errorMessage = error.localizedDescription
                 isLoading = false
             }
@@ -93,8 +105,7 @@ final class ChartViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] quote in
                 guard let self, self.range.isIntraday else { return }
-                // Only accept bars within trading hours
-                if !self.filterTradingHours([quote]).isEmpty {
+                if !self.filterIntradayHours([quote]).isEmpty {
                     self.intradayBars.append(quote)
                     self.recomputeDisplay()
                 }
@@ -103,44 +114,35 @@ final class ChartViewModel: ObservableObject {
     }
 
     private func recomputeDisplay() {
-        let filtered   = filterTradingHours(intradayBars)
+        let filtered   = filterIntradayHours(intradayBars)
         let aggregated = aggregate(filtered, minutesPerBar: timeframe.minuteCount)
         bars = aggregated
         computeIndicatorsAndSignals(bars: aggregated)
     }
 
-    private func computeIndicatorsOnly(bars: [Quote]) {
-        // For multi-day daily bars, no intraday filtering needed
-        let filtered = filterTradingHours(bars)
-        guard let bundle = IndicatorEngine.compute(quotes: filtered) else { return }
-        indicators = bundle
-        self.bars = filtered
-    }
-
-    // MARK: - Trading hours filter (9:30–16:00 ET, weekdays only)
+    // MARK: - Trading hours filters
 
     private static let easternTZ = TimeZone(identifier: "America/New_York")!
 
-    private func filterTradingHours(_ quotes: [Quote]) -> [Quote] {
-        // For daily bars (3M/1Y) or 5D/1M hourly bars, only strip weekends
-        // For intraday, also strip pre/after-market bars
-        let isIntraday = range.isIntraday || range == .fiveDay || range == .oneMonth
+    /// Strip weekends only — used for multi-day ranges (5D/1M/3M/1Y)
+    private func stripWeekends(_ quotes: [Quote]) -> [Quote] {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = Self.easternTZ
+        return quotes.filter {
+            let wd = cal.component(.weekday, from: $0.timestamp)
+            return wd >= 2 && wd <= 6
+        }
+    }
 
+    /// Strip weekends AND pre/after-market — used for 1D intraday only
+    private func filterIntradayHours(_ quotes: [Quote]) -> [Quote] {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = Self.easternTZ
         return quotes.filter { quote in
-            var cal = Calendar(identifier: .gregorian)
-            cal.timeZone = Self.easternTZ
-
-            // Skip weekends
-            let weekday = cal.component(.weekday, from: quote.timestamp)
-            if weekday == 1 || weekday == 7 { return false }
-
-            guard isIntraday else { return true }
-
-            // Keep only 09:30–16:00 ET
-            let comps = cal.dateComponents([.hour, .minute], from: quote.timestamp)
-            let h = comps.hour ?? 0
-            let m = comps.minute ?? 0
-            let totalMin = h * 60 + m
+            let wd = cal.component(.weekday, from: quote.timestamp)
+            guard wd >= 2 && wd <= 6 else { return false }
+            let comps    = cal.dateComponents([.hour, .minute], from: quote.timestamp)
+            let totalMin = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
             return totalMin >= 9 * 60 + 30 && totalMin < 16 * 60
         }
     }

@@ -1,28 +1,31 @@
-// DayTraderApp.swift — app entry point
+// DayTraderApp.swift
 import SwiftUI
+
+// Global shared service — resolved once at launch, accessible everywhere
+enum AppServices {
+    static let marketData: MarketDataService = {
+        if KeychainService.hasAlpacaCredentials,
+           let key    = KeychainService.alpacaAPIKey,
+           let secret = KeychainService.alpacaAPISecret {
+            return AlpacaService(apiKey: key, apiSecret: secret)
+        }
+        return MockMarketDataService(tickInterval: 1.0)
+    }()
+
+    static let signalEngine = SignalEngine()
+}
 
 @main
 struct DayTraderApp: App {
 
-    // Shared service instances (single source of truth)
-    private let marketDataService: MarketDataService = MockMarketDataService(tickInterval: 1.0)
-    private let signalEngine = SignalEngine()
-
-    // Shared ViewModels injected as environment objects
     @StateObject private var watchlistVM: WatchlistViewModel
-    @StateObject private var signalsVM  = SignalsViewModel()
-    @StateObject private var tradeVM    = TradeViewModel()
+    @StateObject private var signalsVM = SignalsViewModel()
+    @StateObject private var tradeVM   = TradeViewModel()
 
     init() {
-        // Use Alpaca if credentials are stored in Keychain, otherwise fall back to Mock
-        let service: MarketDataService = KeychainService.hasAlpacaCredentials
-            ? AlpacaService(apiKey: KeychainService.alpacaAPIKey!,
-                            apiSecret: KeychainService.alpacaAPISecret!)
-            : MockMarketDataService(tickInterval: 1.0)
-
-        let engine = SignalEngine()
         _watchlistVM = StateObject(wrappedValue:
-            WatchlistViewModel(service: service, signalEngine: engine)
+            WatchlistViewModel(service: AppServices.marketData,
+                               signalEngine: AppServices.signalEngine)
         )
     }
 

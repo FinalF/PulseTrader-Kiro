@@ -34,6 +34,18 @@ struct ChartView: View {
             if vm.isLoading {
                 ProgressView("Loading chart…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let err = vm.errorMessage {
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle).foregroundStyle(.orange)
+                    Text(err)
+                        .font(.subheadline).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    Button("Retry") { vm.load() }
+                        .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.bars.isEmpty {
                 Text("No data")
                     .foregroundStyle(.secondary)

@@ -13,13 +13,11 @@ struct StockDetailView: View {
 
     init(symbol: String) {
         self.symbol = symbol
-        // ChartViewModel needs to be created here; injected service from environment
-        // We use a temporary placeholder and wire it in .task below via environment
         _chartVM = StateObject(wrappedValue: ChartViewModel(
             symbol: symbol,
-            service: MockMarketDataService(),
-            signalEngine: SignalEngine(),
-            signalsVM: SignalsViewModel()   // replaced in onAppear
+            service: AppServices.marketData,
+            signalEngine: AppServices.signalEngine,
+            signalsVM: SignalsViewModel()
         ))
     }
 

@@ -31,11 +31,7 @@ final class AlpacaService: MarketDataService {
     }
 
     func fetchBars(symbol: String, range: ChartRange) async throws -> [Quote] {
-        let start = ISO8601DateFormatter().string(
-            from: Calendar.current.date(byAdding: .day,
-                                         value: -range.calendarDays,
-                                         to: Date())!
-        )
+        let start = daysAgoISO(range.calendarDays)
         return try await fetchAlpacaBars(symbol: symbol,
                                           timeframe: range.alpacaTimeframe,
                                           start: start,
@@ -61,8 +57,26 @@ final class AlpacaService: MarketDataService {
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateHTTP(response)
 
-        let decoded = try JSONDecoder().decode(AlpacaBarsResponse.self, from: data)
-        return decoded.bars.map { $0.toQuote(symbol: symbol) }
+        // Debug: print raw JSON to see actual structure
+        if let raw = String(data: data, encoding: .utf8) {
+            print("[Alpaca] \(symbol) raw response (first 500 chars): \(String(raw.prefix(500)))")
+        }
+
+        let decoder = JSONDecoder()
+        let decoded: AlpacaBarsResponse
+        do {
+            decoded = try decoder.decode(AlpacaBarsResponse.self, from: data)
+        } catch {
+            print("[Alpaca] Decode error: \(error)")
+            throw AlpacaError.decodingFailed(error.localizedDescription)
+        }
+
+        // Wire up previousClose: each bar's previousClose = previous bar's close
+        var quotes = decoded.bars.map { $0.toQuote(symbol: symbol) }
+        for i in quotes.indices where i > 0 {
+            quotes[i].previousClose = quotes[i - 1].close
+        }
+        return quotes
     }
 
     func quotePublisher(for symbol: String) -> AnyPublisher<Quote, Never> {
@@ -151,9 +165,28 @@ final class AlpacaService: MarketDataService {
 
     // MARK: - Helpers
 
+    private static let easternTZ  = TimeZone(identifier: "America/New_York")!
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.timeZone = easternTZ
+        return f
+    }()
+
     private func sessionStartISO() -> String {
-        let start = Calendar.current.startOfDay(for: Date()).addingTimeInterval(9.5 * 3600)
-        return ISO8601DateFormatter().string(from: start)
+        // 09:30 ET today
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = Self.easternTZ
+        let now = Date()
+        var comps = cal.dateComponents([.year, .month, .day], from: now)
+        comps.hour = 9; comps.minute = 30; comps.second = 0
+        comps.timeZone = Self.easternTZ
+        let start = cal.date(from: comps) ?? now
+        return Self.isoFormatter.string(from: start)
+    }
+
+    private func daysAgoISO(_ days: Int) -> String {
+        let date = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        return Self.isoFormatter.string(from: date)
     }
 
     private func validateHTTP(_ response: URLResponse) throws {
@@ -174,13 +207,15 @@ enum AlpacaError: LocalizedError {
     case unauthorized
     case rateLimited
     case httpError(Int)
+    case decodingFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL:      return "Invalid Alpaca API URL"
-        case .unauthorized:    return "Invalid Alpaca API key or secret"
-        case .rateLimited:     return "Alpaca rate limit reached — slow down requests"
-        case .httpError(let c): return "Alpaca API error (HTTP \(c))"
+        case .invalidURL:          return "Invalid Alpaca API URL"
+        case .unauthorized:        return "Invalid Alpaca API key or secret"
+        case .rateLimited:         return "Alpaca rate limit reached"
+        case .httpError(let c):    return "Alpaca API error (HTTP \(c))"
+        case .decodingFailed(let m): return "Alpaca data parse error: \(m)"
         }
     }
 }
@@ -190,31 +225,49 @@ enum AlpacaError: LocalizedError {
 private struct AlpacaBarsResponse: Decodable {
     let bars: [AlpacaBar]
     let symbol: String?
-    let nextPageToken: String?
+    let next_page_token: String?   // snake_case matches Alpaca JSON
 }
 
 private struct AlpacaBar: Decodable {
-    let t: String   // RFC-3339 timestamp
+    let t: String
     let o: Double
     let h: Double
     let l: Double
     let c: Double
     let v: Double
     let vw: Double?
-
-    private static let isoFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
+    let n: Int?     // trade count (optional)
 
     func toQuote(symbol: String) -> Quote {
-        let ts = Self.isoFormatter.date(from: t) ?? Date()
+        let ts = parseDate(t) ?? Date()
         return Quote(symbol: symbol,
                      timestamp: ts,
                      open: o, high: h, low: l, close: c,
                      volume: Int(v),
                      previousClose: nil)
+    }
+
+    private func parseDate(_ str: String) -> Date? {
+        // Try with fractional seconds first, then without
+        let formatters: [ISO8601DateFormatter] = [
+            {
+                let f = ISO8601DateFormatter()
+                f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return f
+            }(),
+            {
+                let f = ISO8601DateFormatter()
+                f.formatOptions = [.withInternetDateTime]
+                return f
+            }()
+        ]
+        for f in formatters {
+            if let d = f.date(from: str) { return d }
+        }
+        // Final fallback: strip sub-seconds manually
+        let trimmed = str.replacingOccurrences(of: "\\.\\d+", with: "",
+                                                options: .regularExpression)
+        return ISO8601DateFormatter().date(from: trimmed)
     }
 }
 

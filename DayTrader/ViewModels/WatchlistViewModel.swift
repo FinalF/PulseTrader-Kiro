@@ -37,14 +37,18 @@ final class WatchlistViewModel: ObservableObject {
                 }
             }
         } else {
-            // Real service (Alpaca): fetch latest quote for all symbols right away
+            // Real service (Alpaca): fetch the last bar via the reliable range fetch.
             let symbols = stocks.map(\.symbol)
             Task {
                 await withTaskGroup(of: (String, Quote?).self) { group in
                     for sym in symbols {
                         group.addTask { [weak service] in
-                            let q = try? await service?.fetchLatestQuote(symbol: sym)
-                            return (sym, q)
+                            // 1D rolling window; fall back to 5D if empty
+                            var bars = (try? await service?.fetchBars(symbol: sym, range: .oneDay)) ?? []
+                            if bars.isEmpty {
+                                bars = (try? await service?.fetchBars(symbol: sym, range: .fiveDay)) ?? []
+                            }
+                            return (sym, bars.last)
                         }
                     }
                     for await (sym, quote) in group {
@@ -96,23 +100,20 @@ final class WatchlistViewModel: ObservableObject {
     private func startStream(for symbol: String) {
         Task {
             do {
-                let bars = try await service.fetchBars(symbol: symbol,
-                                                       limit: Configuration.intraDayBarsToFetch)
+                // Use the SAME reliable range fetch the chart uses (rolling 1D window),
+                // not fetchBars(limit:) which uses a strict 09:30-ET-today window that
+                // returns empty on the IEX free tier.
+                var bars = try await service.fetchBars(symbol: symbol, range: .oneDay)
+                // Fallback to a 5-day window if 1D came back empty (market closed)
+                if bars.isEmpty {
+                    bars = try await service.fetchBars(symbol: symbol, range: .fiveDay)
+                }
                 barCache[symbol] = bars
                 if let last = bars.last {
                     updateStock(symbol: symbol, newBar: last)
-                } else {
-                    // No intraday bars (market closed) — fetch last known price
-                    if let latest = try? await service.fetchLatestQuote(symbol: symbol) {
-                        updateStock(symbol: symbol, newBar: latest)
-                    }
                 }
                 runIndicatorsAndSignal(symbol: symbol)
             } catch {
-                // Still try latest quote so price shows even on error
-                if let latest = try? await service.fetchLatestQuote(symbol: symbol) {
-                    updateStock(symbol: symbol, newBar: latest)
-                }
                 errorMessage = "Failed to load \(symbol): \(error.localizedDescription)"
             }
         }

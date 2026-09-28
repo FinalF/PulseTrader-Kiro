@@ -249,13 +249,15 @@ struct ChartView: View {
                         .foregroundStyle(Color.indicatorBB.opacity(0.06))
                 }
                 ForEach(pairs, id: \.0) { i, upper, _ in
-                    LineMark(x: .value("i", i), y: .value("BB↑", upper))
-                        .foregroundStyle(Color.indicatorBB.opacity(0.6))
+                    LineMark(x: .value("i", i), y: .value("price", upper),
+                             series: .value("s", "BB Upper"))
+                        .foregroundStyle(by: .value("s", "BB Upper"))
                         .lineStyle(StrokeStyle(lineWidth: 1))
                 }
                 ForEach(pairs, id: \.0) { i, _, lower in
-                    LineMark(x: .value("i", i), y: .value("BB↓", lower))
-                        .foregroundStyle(Color.indicatorBB.opacity(0.6))
+                    LineMark(x: .value("i", i), y: .value("price", lower),
+                             series: .value("s", "BB Lower"))
+                        .foregroundStyle(by: .value("s", "BB Lower"))
                         .lineStyle(StrokeStyle(lineWidth: 1))
                 }
             }
@@ -263,8 +265,9 @@ struct ChartView: View {
             if let ema9 = vm.indicators?.ema9 {
                 ForEach(Array(vm.bars.enumerated()), id: \.offset) { i, _ in
                     if let v = ema9[safe: i] ?? nil {
-                        LineMark(x: .value("i", i), y: .value("EMA9", v))
-                            .foregroundStyle(Color.indicatorEMA9)
+                        LineMark(x: .value("i", i), y: .value("price", v),
+                                 series: .value("s", "EMA9"))
+                            .foregroundStyle(by: .value("s", "EMA9"))
                             .lineStyle(StrokeStyle(lineWidth: 1.5))
                     }
                 }
@@ -273,8 +276,9 @@ struct ChartView: View {
             if let vwap = vm.indicators?.vwap {
                 ForEach(Array(vm.bars.enumerated()), id: \.offset) { i, _ in
                     if let v = vwap[safe: i] ?? nil {
-                        LineMark(x: .value("i", i), y: .value("VWAP", v))
-                            .foregroundStyle(Color.indicatorVWAP)
+                        LineMark(x: .value("i", i), y: .value("price", v),
+                                 series: .value("s", "VWAP"))
+                            .foregroundStyle(by: .value("s", "VWAP"))
                             .lineStyle(StrokeStyle(lineWidth: 1.5))
                     }
                 }
@@ -300,6 +304,13 @@ struct ChartView: View {
                 }
             }
         }
+        .chartForegroundStyleScale([
+            "BB Upper": Color.indicatorBB.opacity(0.6),
+            "BB Lower": Color.indicatorBB.opacity(0.6),
+            "EMA9":     Color.indicatorEMA9,
+            "VWAP":     Color.indicatorVWAP,
+        ])
+        .chartLegend(.hidden)   // we render our own legend overlay
         .chartXAxis(.hidden)
         .chartYScale(domain: vm.yDomain)
         .chartYAxis {

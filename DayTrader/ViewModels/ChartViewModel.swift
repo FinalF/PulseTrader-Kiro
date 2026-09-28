@@ -22,6 +22,7 @@ final class ChartViewModel: ObservableObject {
     @Published var bars: [Quote] = []
     @Published var indicators: IndicatorBundle?
     @Published var signals: [TradeSignal] = []
+    @Published var signalBreakdown: SignalBreakdown?
     @Published var timeframe: Timeframe = .oneMin
     @Published var range: ChartRange = .oneDay
     @Published var isLoading = true
@@ -169,6 +170,8 @@ final class ChartViewModel: ObservableObject {
     private func computeIndicatorsAndSignals(bars: [Quote]) {
         guard let bundle = IndicatorEngine.compute(quotes: bars) else { return }
         indicators = bundle
+        // Always compute breakdown regardless of threshold
+        signalBreakdown = signalEngine.breakdown(quotes: bars, indicators: bundle)
         let barIndex = bars.count - 1
         if let signal = signalEngine.evaluate(quotes: bars,
                                                indicators: bundle,

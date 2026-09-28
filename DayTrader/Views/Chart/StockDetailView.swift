@@ -123,6 +123,15 @@ struct StockDetailView: View {
             .prefix(10)
 
         return VStack(alignment: .leading, spacing: 0) {
+
+            // ── Live indicator breakdown ─────────────────────────────
+            if let breakdown = chartVM.signalBreakdown {
+                IndicatorBreakdownView(breakdown: breakdown)
+                    .padding(.horizontal)
+                Divider().padding(.vertical, 8)
+            }
+
+            // ── Recent signals ───────────────────────────────────────
             Text("Recent Signals")
                 .font(.headline)
                 .padding(.horizontal)

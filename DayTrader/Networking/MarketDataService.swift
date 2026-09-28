@@ -52,6 +52,9 @@ protocol MarketDataService {
     /// Fetch bars for a given range (used by chart)
     func fetchBars(symbol: String, range: ChartRange) async throws -> [Quote]
 
+    /// Fetch the single latest quote (last trade price) — used for watchlist when market is closed
+    func fetchLatestQuote(symbol: String) async throws -> Quote?
+
     /// Publisher that emits a new Quote on each simulated/live bar close
     func quotePublisher(for symbol: String) -> AnyPublisher<Quote, Never>
 }

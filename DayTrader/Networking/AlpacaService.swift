@@ -82,6 +82,47 @@ final class AlpacaService: MarketDataService {
         }
     }
 
+    func fetchLatestQuote(symbol: String) async throws -> Quote? {
+        // Use Alpaca's latest bar endpoint — returns the most recent completed 1-min bar
+        var components = URLComponents(string: "\(baseURL)/v2/stocks/\(symbol)/bars/latest")!
+        components.queryItems = [
+            URLQueryItem(name: "feed", value: "iex"),
+        ]
+        guard let url = components.url else { return nil }
+        var request = URLRequest(url: url)
+        request.addValue(apiKey,    forHTTPHeaderField: "APCA-API-KEY-ID")
+        request.addValue(apiSecret, forHTTPHeaderField: "APCA-API-SECRET-KEY")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validateHTTP(response)
+
+        struct LatestBarResponse: Decodable {
+            let bar: AlpacaLatestBar?
+            let symbol: String?
+        }
+        struct AlpacaLatestBar: Decodable {
+            let t: String
+            let o, h, l, c, v: Double
+        }
+
+        guard let decoded = try? JSONDecoder().decode(LatestBarResponse.self, from: data),
+              let bar = decoded.bar else { return nil }
+
+        let ts = parseISO(bar.t) ?? Date()
+        return Quote(symbol: symbol, timestamp: ts,
+                     open: bar.o, high: bar.h, low: bar.l, close: bar.c,
+                     volume: Int(bar.v), previousClose: nil)
+    }
+
+    private func parseISO(_ str: String) -> Date? {
+        let f1 = ISO8601DateFormatter()
+        f1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f1.date(from: str) { return d }
+        let f2 = ISO8601DateFormatter()
+        f2.formatOptions = [.withInternetDateTime]
+        return f2.date(from: str)
+    }
+
     func quotePublisher(for symbol: String) -> AnyPublisher<Quote, Never> {
         if let existing = subjects[symbol] {
             return existing.eraseToAnyPublisher()

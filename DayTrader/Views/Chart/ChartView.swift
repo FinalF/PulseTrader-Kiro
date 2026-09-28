@@ -211,19 +211,34 @@ struct ChartView: View {
                 .foregroundStyle(isGreen ? Color.gain : Color.loss)
             }
 
-            // BB
+            // BB — solid envelope: filled area between upper/lower, solid border lines
             if let bb = vm.indicators?.bb {
-                ForEach(Array(vm.bars.enumerated()), id: \.offset) { i, _ in
-                    if let u = bb.upper[safe: i] ?? nil {
-                        LineMark(x: .value("i", i), y: .value("BB↑", u))
-                            .foregroundStyle(Color.blue.opacity(0.4))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3]))
-                    }
-                    if let l = bb.lower[safe: i] ?? nil {
-                        LineMark(x: .value("i", i), y: .value("BB↓", l))
-                            .foregroundStyle(Color.blue.opacity(0.4))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3]))
-                    }
+                // Collect paired upper/lower points
+                let pairs: [(Int, Double, Double)] = vm.bars.indices.compactMap { i in
+                    guard let u = bb.upper[safe: i] ?? nil,
+                          let l = bb.lower[safe: i] ?? nil else { return nil }
+                    return (i, u, l)
+                }
+                // Fill area between bands
+                ForEach(pairs, id: \.0) { i, upper, lower in
+                    AreaMark(
+                        x: .value("i", i),
+                        yStart: .value("BBL", lower),
+                        yEnd:   .value("BBU", upper)
+                    )
+                    .foregroundStyle(Color.blue.opacity(0.05))
+                }
+                // Upper band line
+                ForEach(pairs, id: \.0) { i, upper, _ in
+                    LineMark(x: .value("i", i), y: .value("BB↑", upper))
+                        .foregroundStyle(Color.blue.opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1))
+                }
+                // Lower band line
+                ForEach(pairs, id: \.0) { i, _, lower in
+                    LineMark(x: .value("i", i), y: .value("BB↓", lower))
+                        .foregroundStyle(Color.blue.opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1))
                 }
             }
             // EMA9
@@ -300,11 +315,15 @@ struct ChartView: View {
                 }
                 if let l = vm.indicators?.macd.line[safe: i] ?? nil {
                     LineMark(x: .value("i", i), y: .value("M", l))
-                        .foregroundStyle(Color.blue).lineStyle(StrokeStyle(lineWidth: 1))
+                        .foregroundStyle(Color.blue)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .interpolationMethod(.catmullRom)
                 }
                 if let s = vm.indicators?.macd.signal[safe: i] ?? nil {
                     LineMark(x: .value("i", i), y: .value("S", s))
-                        .foregroundStyle(Color.orange).lineStyle(StrokeStyle(lineWidth: 1))
+                        .foregroundStyle(Color.orange)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .interpolationMethod(.catmullRom)
                 }
             }
             if let idx = selectedIndex {
@@ -338,7 +357,9 @@ struct ChartView: View {
             ForEach(Array(vm.bars.enumerated()), id: \.offset) { i, _ in
                 if let r = vm.indicators?.rsi[safe: i] ?? nil {
                     LineMark(x: .value("i", i), y: .value("RSI", r))
-                        .foregroundStyle(Color.purple).lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .foregroundStyle(Color.purple)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .interpolationMethod(.catmullRom)
                 }
             }
             if let idx = selectedIndex {

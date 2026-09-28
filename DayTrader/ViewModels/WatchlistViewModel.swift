@@ -75,15 +75,25 @@ final class WatchlistViewModel: ObservableObject {
     // MARK: - Private
 
     private func startStream(for symbol: String) {
-        // Fetch historical bars first, then subscribe to live stream
         Task {
             do {
                 let bars = try await service.fetchBars(symbol: symbol,
                                                        limit: Configuration.intraDayBarsToFetch)
                 barCache[symbol] = bars
-                updateStock(symbol: symbol, newBar: bars.last)
+                if let last = bars.last {
+                    updateStock(symbol: symbol, newBar: last)
+                } else {
+                    // No intraday bars (market closed) — fetch last known price
+                    if let latest = try? await service.fetchLatestQuote(symbol: symbol) {
+                        updateStock(symbol: symbol, newBar: latest)
+                    }
+                }
                 runIndicatorsAndSignal(symbol: symbol)
             } catch {
+                // Still try latest quote so price shows even on error
+                if let latest = try? await service.fetchLatestQuote(symbol: symbol) {
+                    updateStock(symbol: symbol, newBar: latest)
+                }
                 errorMessage = "Failed to load \(symbol): \(error.localizedDescription)"
             }
         }

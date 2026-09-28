@@ -54,6 +54,10 @@ final class MockMarketDataService: MarketDataService {
         }
     }
 
+    func fetchLatestQuote(symbol: String) async throws -> Quote? {
+        return barCache[symbol]?.last
+    }
+
     func quotePublisher(for symbol: String) -> AnyPublisher<Quote, Never> {
         if let existing = subjects[symbol] { return existing.eraseToAnyPublisher() }
 

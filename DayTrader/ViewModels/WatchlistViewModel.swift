@@ -36,29 +36,9 @@ final class WatchlistViewModel: ObservableObject {
                     stocks[i].latestQuote = last
                 }
             }
-        } else {
-            // Real service (Alpaca): fetch the last bar via the reliable range fetch.
-            let symbols = stocks.map(\.symbol)
-            Task {
-                await withTaskGroup(of: (String, Quote?).self) { group in
-                    for sym in symbols {
-                        group.addTask { [weak service] in
-                            // 1D rolling window; fall back to 5D if empty
-                            var bars = (try? await service?.fetchBars(symbol: sym, range: .oneDay)) ?? []
-                            if bars.isEmpty {
-                                bars = (try? await service?.fetchBars(symbol: sym, range: .fiveDay)) ?? []
-                            }
-                            return (sym, bars.last)
-                        }
-                    }
-                    for await (sym, quote) in group {
-                        if let quote, let idx = self.stocks.firstIndex(where: { $0.symbol == sym }) {
-                            self.stocks[idx].latestQuote = quote
-                        }
-                    }
-                }
-            }
         }
+        // Note: price loading for real services happens in startStreaming()
+        // (serial, to avoid Alpaca free-tier rate limiting)
     }
 
     // MARK: - Public API
@@ -74,50 +54,36 @@ final class WatchlistViewModel: ObservableObject {
     }
 
     func startStreaming() {
-        for symbol in stocks.map(\.symbol) {
-            startStream(for: symbol)
-        }
-    }
-
-    func stopStreaming() {
-        cancellables.removeAll()
-    }
-
-    func addStock(_ stock: Stock) {
-        guard !stocks.contains(where: { $0.symbol == stock.symbol }) else { return }
-        stocks.append(stock)
-        saveWatchlist()
-        startStream(for: stock.symbol)
-    }
-
-    func removeStock(symbol: String) {
-        stocks.removeAll { $0.symbol == symbol }
-        saveWatchlist()
-    }
-
-    // MARK: - Private
-
-    private func startStream(for symbol: String) {
+        let symbols = stocks.map(\.symbol)
+        // Fetch prices serially to avoid Alpaca free-tier rate limits,
+        // then subscribe to each live stream.
         Task {
-            do {
-                // Use the SAME reliable range fetch the chart uses (rolling 1D window),
-                // not fetchBars(limit:) which uses a strict 09:30-ET-today window that
-                // returns empty on the IEX free tier.
-                var bars = try await service.fetchBars(symbol: symbol, range: .oneDay)
-                // Fallback to a 5-day window if 1D came back empty (market closed)
-                if bars.isEmpty {
-                    bars = try await service.fetchBars(symbol: symbol, range: .fiveDay)
-                }
-                barCache[symbol] = bars
-                if let last = bars.last {
-                    updateStock(symbol: symbol, newBar: last)
-                }
-                runIndicatorsAndSignal(symbol: symbol)
-            } catch {
-                errorMessage = "Failed to load \(symbol): \(error.localizedDescription)"
+            for symbol in symbols {
+                await loadInitialBars(for: symbol)
             }
         }
+        for symbol in symbols {
+            subscribeLive(for: symbol)
+        }
+    }
 
+    private func loadInitialBars(for symbol: String) async {
+        do {
+            var bars = try await service.fetchBars(symbol: symbol, range: .oneDay)
+            if bars.isEmpty {
+                bars = try await service.fetchBars(symbol: symbol, range: .fiveDay)
+            }
+            barCache[symbol] = bars
+            if let last = bars.last {
+                updateStock(symbol: symbol, newBar: last)
+                runIndicatorsAndSignal(symbol: symbol)
+            }
+        } catch {
+            errorMessage = "\(symbol): \(error.localizedDescription)"
+        }
+    }
+
+    private func subscribeLive(for symbol: String) {
         service.quotePublisher(for: symbol)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] quote in
@@ -128,6 +94,27 @@ final class WatchlistViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+
+    func stopStreaming() {
+        cancellables.removeAll()
+    }
+
+    func addStock(_ stock: Stock) {
+        guard !stocks.contains(where: { $0.symbol == stock.symbol }) else { return }
+        stocks.append(stock)
+        saveWatchlist()
+        Task { await loadInitialBars(for: stock.symbol) }
+        subscribeLive(for: stock.symbol)
+    }
+
+    func removeStock(symbol: String) {
+        stocks.removeAll { $0.symbol == symbol }
+        saveWatchlist()
+    }
+
+    // MARK: - Private
+
+
 
     private func updateStock(symbol: String, newBar: Quote?) {
         guard let idx = stocks.firstIndex(where: { $0.symbol == symbol }) else { return }

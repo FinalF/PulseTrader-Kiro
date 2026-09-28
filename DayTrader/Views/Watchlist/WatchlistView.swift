@@ -57,8 +57,11 @@ struct WatchlistView: View {
                 Button {
                     watchlistVM.sortOrder = order
                 } label: {
-                    Label(order.rawValue,
-                          systemImage: watchlistVM.sortOrder == order ? "checkmark" : "")
+                    if watchlistVM.sortOrder == order {
+                        Label(order.rawValue, systemImage: "checkmark")
+                    } else {
+                        Text(order.rawValue)
+                    }
                 }
             }
         } label: {

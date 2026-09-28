@@ -3,9 +3,18 @@ import Foundation
 
 struct Stock: Identifiable, Codable, Hashable {
 
-    // Manual Hashable — Quote is not Hashable so we hash on the stable id only
+    // Manual Hashable — Quote is not Hashable so we hash on the stable id only.
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
-    static func == (lhs: Stock, rhs: Stock) -> Bool { lhs.id == rhs.id }
+
+    // Equatable must compare the fields that affect rendering, otherwise
+    // SwiftUI skips redrawing rows when latestQuote/latestSignal change
+    // (e.g. price stays "--" forever even after data arrives).
+    static func == (lhs: Stock, rhs: Stock) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.latestQuote?.close == rhs.latestQuote?.close &&
+        lhs.latestQuote?.previousClose == rhs.latestQuote?.previousClose &&
+        lhs.latestSignal?.id == rhs.latestSignal?.id
+    }
     let id: String
     var symbol: String
     var name: String

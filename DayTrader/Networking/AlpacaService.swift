@@ -65,14 +65,18 @@ final class AlpacaService: MarketDataService {
 
         do {
             let decoded = try JSONDecoder().decode(AlpacaBarsResponse.self, from: data)
-            var quotes = decoded.bars.map { $0.toQuote(symbol: symbol) }
+            let barList = decoded.bars ?? []   // null → empty array
+            if barList.isEmpty {
+                print("[Alpaca OK] \(symbol): no bars (market closed or holiday)")
+                return []
+            }
+            var quotes = barList.map { $0.toQuote(symbol: symbol) }
             for i in quotes.indices where i > 0 {
                 quotes[i].previousClose = quotes[i - 1].close
             }
             print("[Alpaca OK] \(symbol): \(quotes.count) bars decoded")
             return quotes
         } catch {
-            // Show the full decode error AND the raw JSON in the app
             print("[Alpaca DECODE FAIL] \(error)")
             throw AlpacaError.decodingFailed("[\(symbol)] \(error)\n\nRaw: \(raw.prefix(300))")
         }
@@ -232,7 +236,7 @@ enum AlpacaError: LocalizedError {
 // MARK: - Decodable models
 
 private struct AlpacaBarsResponse: Decodable {
-    let bars: [AlpacaBar]
+    let bars: [AlpacaBar]?     // null when no data (e.g. market closed, weekend)
     let symbol: String?
     let next_page_token: String?   // snake_case matches Alpaca JSON
 }

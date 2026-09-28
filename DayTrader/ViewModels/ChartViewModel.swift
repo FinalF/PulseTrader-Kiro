@@ -27,6 +27,21 @@ final class ChartViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
 
+    /// Dynamic Y-axis domain with 5% padding above and below
+    var yDomain: ClosedRange<Double> {
+        guard !bars.isEmpty else { return 0...1 }
+        // Include BB bands if available so they're not clipped
+        var allValues = bars.flatMap { [$0.low, $0.high] }
+        if let bb = indicators?.bb {
+            allValues += bb.upper.compactMap { $0 }
+            allValues += bb.lower.compactMap { $0 }
+        }
+        let lo = allValues.min() ?? 0
+        let hi = allValues.max() ?? 1
+        let pad = (hi - lo) * 0.05
+        return (lo - pad)...(hi + pad)
+    }
+
     let symbol: String
     private let service: MarketDataService
     private let signalEngine: SignalEngine

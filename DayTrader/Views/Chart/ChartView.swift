@@ -268,6 +268,7 @@ struct ChartView: View {
             }
         }
         .chartXAxis(.hidden)
+        .chartYScale(domain: vm.yDomain)
         .chartYAxis {
             AxisMarks(position: .trailing) { _ in
                 AxisValueLabel().font(.caption2)

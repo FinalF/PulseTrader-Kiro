@@ -59,25 +59,18 @@ final class AlpacaService: MarketDataService {
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateHTTP(response)
 
-        // Always print full raw response for debugging
         let raw = String(data: data, encoding: .utf8) ?? "<binary>"
-        print("[Alpaca RAW] \(symbol) \(timeframe):\n\(raw)\n")
 
         do {
             let decoded = try JSONDecoder().decode(AlpacaBarsResponse.self, from: data)
             let barList = decoded.bars ?? []   // null → empty array
-            if barList.isEmpty {
-                print("[Alpaca OK] \(symbol): no bars (market closed or holiday)")
-                return []
-            }
+            if barList.isEmpty { return [] }
             var quotes = barList.map { $0.toQuote(symbol: symbol) }
             for i in quotes.indices where i > 0 {
                 quotes[i].previousClose = quotes[i - 1].close
             }
-            print("[Alpaca OK] \(symbol): \(quotes.count) bars decoded")
             return quotes
         } catch {
-            print("[Alpaca DECODE FAIL] \(error)")
             throw AlpacaError.decodingFailed("[\(symbol)] \(error)\n\nRaw: \(raw.prefix(300))")
         }
     }

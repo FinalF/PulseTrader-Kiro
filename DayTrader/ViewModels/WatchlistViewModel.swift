@@ -159,12 +159,16 @@ final class WatchlistViewModel: ObservableObject {
     }
 
     private func loadWatchlist() {
-        guard let saved = UserDefaults.standard.stringArray(forKey: watchlistKey),
-              !saved.isEmpty else { return }
-        // Merge saved symbols with defaults
-        let existing = Set(stocks.map { $0.symbol })
-        for symbol in saved where !existing.contains(symbol) {
-            stocks.append(Stock(symbol: symbol, name: symbol))
+        // If the user has a saved watchlist, it REPLACES the defaults entirely
+        // (so removed stocks stay removed across launches).
+        guard let saved = UserDefaults.standard.stringArray(forKey: watchlistKey) else {
+            return   // no saved list yet → keep defaults from init
+        }
+        // Preserve display names for known default symbols
+        let nameLookup = Dictionary(uniqueKeysWithValues:
+            Stock.defaults.map { ($0.symbol, $0.name) })
+        stocks = saved.map { sym in
+            Stock(symbol: sym, name: nameLookup[sym] ?? sym)
         }
     }
 }

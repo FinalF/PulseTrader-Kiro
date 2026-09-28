@@ -89,12 +89,10 @@ final class ChartViewModel: ObservableObject {
         Task {
             do {
                 let fetched = try await service.fetchBars(symbol: symbol, range: r)
-                print("[Chart] \(symbol) \(r.rawValue): fetched \(fetched.count) bars")
 
                 if r.isIntraday {
                     // 1D — filter to trading hours, then aggregate by timeframe
                     intradayBars = filterIntradayHours(fetched)
-                    print("[Chart] after trading-hours filter: \(intradayBars.count) bars")
                     if intradayBars.isEmpty {
                         errorMessage = "No data for this session — market may be closed or it's a holiday. Try 5D to see the last session."
                     } else {
@@ -105,7 +103,6 @@ final class ChartViewModel: ObservableObject {
                     // 5D/1M/3M/1Y — bars are already at correct granularity,
                     // just strip weekends (no time-of-day filtering)
                     let filtered = stripWeekends(fetched)
-                    print("[Chart] after weekend strip: \(filtered.count) bars")
                     bars = filtered
                     if let bundle = IndicatorEngine.compute(quotes: filtered) {
                         indicators = bundle
@@ -113,7 +110,6 @@ final class ChartViewModel: ObservableObject {
                 }
                 isLoading = false
             } catch {
-                print("[Chart] ERROR \(symbol) \(r.rawValue): \(error)")
                 errorMessage = error.localizedDescription
                 isLoading = false
             }

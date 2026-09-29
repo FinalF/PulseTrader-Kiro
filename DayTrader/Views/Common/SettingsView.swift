@@ -161,6 +161,11 @@ struct SettingsView: View {
                     }
                 }
 
+                // MARK: Disclaimer
+                Section {
+                    DisclaimerDetail()
+                }
+
                 // MARK: About
                 Section("About") {
                     LabeledContent("Version", value: "1.0 (MVP)")

@@ -44,8 +44,11 @@ enum Configuration {
     struct Signals {
         static let rsiOversold: Double  = 30.0
         static let rsiOverbought: Double = 70.0
-        /// Minimum confluence score (0–1) before a signal fires
-        static let minConfluenceScore: Double = 0.6
+        /// Minimum confluence score (0–1) before a signal fires.
+        /// NOTE: 0.45 is the calibrated default. The old 0.60 was unreachable —
+        /// the maximum achievable score is ~0.55, so the app produced ZERO
+        /// signals. See .kiro/specs/daytrader-app/backtest-findings.md.
+        static let minConfluenceScore: Double = 0.45
     }
 
     // MARK: - Risk defaults

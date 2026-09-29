@@ -11,9 +11,15 @@ struct SignalsView: View {
                 if signalsVM.filteredSignals.isEmpty {
                     emptyState
                 } else {
-                    List(signalsVM.filteredSignals) { signal in
-                        SignalRowView(signal: signal)
-                            .listRowBackground(Color.panelBackground)
+                    List {
+                        Section {
+                            ForEach(signalsVM.filteredSignals) { signal in
+                                SignalRowView(signal: signal)
+                                    .listRowBackground(Color.panelBackground)
+                            }
+                        } footer: {
+                            DisclaimerBanner()
+                        }
                     }
                     .listStyle(.insetGrouped)
                 }
@@ -48,6 +54,10 @@ struct SignalsView: View {
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+
+            DisclaimerBanner()
+                .padding(.horizontal, 32)
+                .padding(.top, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

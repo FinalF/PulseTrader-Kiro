@@ -44,3 +44,9 @@ Thumbnails
 # Configuration.swift contains only placeholders; keep it that way
 *.env
 secrets.plist
+.backtest-secrets
+.backtest-secrets.env
+
+# Backtest research — local only, not for the repo
+backtest/
+BACKTEST-FINDINGS.md

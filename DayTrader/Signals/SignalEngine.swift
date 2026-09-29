@@ -51,11 +51,17 @@ private struct RuleVote {
     let weight: Double
     let direction: SignalDirection?
     let detail: String
+    /// True for rules that never vote directionally (e.g. Volume confirmation).
+    /// These are shown in the breakdown but EXCLUDED from the score denominator
+    /// so they can't dilute the confluence score.
+    let informationalOnly: Bool
 
     init(_ name: String, _ weight: Double,
-         _ dir: SignalDirection?, _ detail: String = "—") {
+         _ dir: SignalDirection?, _ detail: String = "—",
+         informationalOnly: Bool = false) {
         self.name = name; self.weight = weight
         self.direction = dir; self.detail = detail
+        self.informationalOnly = informationalOnly
     }
 }
 
@@ -101,6 +107,9 @@ final class SignalEngine {
 
         var buyScore = 0.0, sellScore = 0.0, totalWeight = 0.0
         for v in votes {
+            // Informational-only rules (Volume) are shown but excluded from the
+            // denominator so they don't dilute the confluence score.
+            guard !v.informationalOnly else { continue }
             totalWeight += v.weight
             switch v.direction {
             case .buy:  buyScore  += v.weight
@@ -167,6 +176,9 @@ final class SignalEngine {
 
         var buyScore = 0.0, sellScore = 0.0, totalWeight = 0.0
         for v in votes {
+            // Informational-only rules (Volume) are shown but excluded from the
+            // denominator so they don't dilute the confluence score.
+            guard !v.informationalOnly else { continue }
             totalWeight += v.weight
             switch v.direction {
             case .buy:  buyScore  += v.weight
@@ -317,14 +329,13 @@ final class SignalEngine {
 
     private func volumeVote(indicators: IndicatorBundle, i: Int) -> RuleVote {
         let w = 0.05
-        guard let volSMA = indicators.volumeSMA[safe: i] ?? nil,
-              let bar    = indicators.vwap[safe: i]  // use vwap array to get index bounds
-        else { return RuleVote("Volume", w, nil, "No volume SMA") }
-        let _ = bar  // silence unused warning
-        // Volume spike is directional only when combined with other rules.
-        // Here we just report the state.
+        guard let volSMA = indicators.volumeSMA[safe: i] ?? nil
+        else { return RuleVote("Volume", w, nil, "No volume SMA", informationalOnly: true) }
+        // Volume never votes directionally in v1 — confirmation only.
+        // Marked informationalOnly so it's excluded from the score denominator.
         let smaStr = String(format: "%.0f", volSMA)
-        return RuleVote("Volume", w, nil, "Vol SMA \(smaStr) — used for confirmation")
+        return RuleVote("Volume", w, nil, "Vol SMA \(smaStr) — confirmation only",
+                        informationalOnly: true)
     }
 }
 

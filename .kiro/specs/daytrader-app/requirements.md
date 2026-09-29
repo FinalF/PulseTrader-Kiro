@@ -85,10 +85,11 @@ Intra-day traders must simultaneously watch multiple stocks, compute indicators,
 
 ### FR-03 Signal Engine
 - FR-03.1 ✅ Evaluate 6 weighted rules per bar: RSI extreme (25%), MACD crossover (25%), BB touch (20%), EMA9 cross (15%), VWAP cross (10%), volume spike (5%).
-- FR-03.2 ✅ Compute weighted confluence score (0–1); emit signal when score ≥ threshold (default 0.6).
+- FR-03.2 ✅ Compute weighted confluence score (0–1); emit signal when score ≥ threshold (default 0.45). Volume rule is confirmation-only and excluded from the score denominator.
 - FR-03.3 ✅ Each signal includes: symbol, direction, confidence, triggering indicators, entry price, ATR-based stop-loss, ATR-based take-profit, R:R ratio.
 - FR-03.4 ✅ 5-bar cooldown prevents duplicate signals for same symbol + direction.
 - FR-03.5 ✅ Local push notification for signals with confidence ≥ 0.8 (configurable threshold).
+- FR-03.6 ✅ Signals are presented as educational analysis, NOT trade advice. A "not financial advice" disclaimer is shown in the Signals feed and Settings (see `DisclaimerView`). Backtesting demonstrated no reliable edge — see `algorithm.md` §7.
 
 ### FR-04 Charting
 - FR-04.1 ✅ Candlestick chart using Apple Swift Charts with integer index X-axis (no weekend gaps).
@@ -137,6 +138,7 @@ Intra-day traders must simultaneously watch multiple stocks, compute indicators,
 - **No holiday calendar:** weekend detection only; US market holidays (e.g. Thanksgiving) not handled
 - **Signal generation on 1D only:** multi-day ranges (5D/1M/3M/1Y) display indicators but do not generate signals
 - **Long-only paper trading:** short-selling UI not exposed in v1 (model supports it for schema stability)
+- **No demonstrated trading edge:** walk-forward backtesting (in-sample tuning + out-of-sample validation on unseen time and unseen stocks) showed the signal strategy is over-fit with no reliable edge. Signals are shipped strictly as educational analysis with a disclaimer, never as trade recommendations.
 
 ---
 

@@ -135,7 +135,7 @@ Each rule casts a **vote**: buy, sell, or neutral. Each has a fixed weight.
 | 3 | **Bollinger touch** | 0.20 | Close ≤ lower band | Close ≥ upper band |
 | 4 | **EMA9 cross** | 0.15 | Close crosses **above** EMA9 | crosses **below** EMA9 |
 | 5 | **VWAP cross** | 0.10 | Close crosses **above** VWAP | crosses **below** VWAP |
-| 6 | **Volume** | 0.05 | (confirmation only — neutral vote in v1) | — |
+| 6 | **Volume** | 0.05 | (confirmation only — **never votes**, excluded from score) | — |
 
 Notes on "crossover" rules (2, 4, 5): they compare the **previous bar** and the
 **current bar** to detect a genuine cross, not just which side price is on. E.g. EMA9
@@ -145,8 +145,12 @@ The RSI thresholds (30 / 70) and other periods are configurable in Settings.
 
 ### 3.2 Confluence score
 
+The Volume rule is **informational only** — it never votes directionally, so it is
+**excluded from the denominator** (otherwise its 0.05 weight would permanently dilute
+every score). Only the five directional rules count toward `totalWeight`.
+
 ```
-totalWeight = Σ (weight of every rule that produced a vote)
+totalWeight = Σ (weight of directional rules)         // = 0.95 (RSI+MACD+BB+EMA9+VWAP)
 buyScore    = Σ (weight of rules voting BUY)  / totalWeight
 sellScore   = Σ (weight of rules voting SELL) / totalWeight
 ```
@@ -155,10 +159,18 @@ The **dominant direction** is whichever of buyScore / sellScore is larger.
 
 A signal is emitted **only if**:
 ```
-dominantScore ≥ minConfluenceScore   (default 0.60)
+dominantScore ≥ minConfluenceScore   (default 0.45)
 ```
 Otherwise no signal fires — the `IndicatorBreakdownView` still shows the live scores so
 you can see exactly which rules did or didn't contribute.
+
+> **History:** the original threshold was 0.60 with Volume counted in the denominator,
+> which made the maximum achievable score ~0.55 → **the app produced zero signals ever.**
+> Backtesting caught this. Fix: exclude Volume from the denominator (max score now 1.0)
+> and lower the default threshold to 0.45. See `BACKTEST-FINDINGS.md` (local only).
+>
+> **The 0.45 value is a calibration to make the feature function — NOT a value that has
+> been shown to be profitable.** Out-of-sample testing found no reliable edge.
 
 ### 3.3 Confidence tiers
 
@@ -223,7 +235,7 @@ Buy and sell are tracked independently — a sell can still fire during a buy's 
 | SMA period | 20 | ✅ |
 | Volume SMA period | 20 | — |
 | ATR period | 14 | — |
-| Min confluence score | 0.60 | ✅ |
+| Min confluence score | 0.45 | ✅ |
 | Notify threshold | 0.80 | ✅ |
 | ATR stop multiplier | 1.5 | — |
 | ATR target multiplier | 3.0 | — |
@@ -245,3 +257,20 @@ Buy and sell are tracked independently — a sell can still fire during a buy's 
 
 These are intentional v1 simplifications, not bugs. See `requirements.md` "Known
 Limitations" and the v1 out-of-scope list.
+
+---
+
+## 7. Validation status — no demonstrated edge
+
+This strategy was backtested on real Alpaca (IEX) data using a walk-forward
+protocol: parameters tuned on an in-sample window, then validated on an unseen
+time window AND an unseen set of stocks.
+
+**Result: over-fit, no reliable edge.** Configurations that looked profitable
+in-sample dropped to a loss (profit factor 0.89) on different stocks, with 30%+
+drawdowns. A single recent week happened to be profitable (+5.8%/symbol), but that
+tracked the tech-sector rally (market beta), not a repeatable signal.
+
+**The signals are therefore framed in the app as educational analysis, not trade
+advice, with an explicit "not financial advice" disclaimer.** Full results are in
+`BACKTEST-FINDINGS.md` (git-ignored, local only).

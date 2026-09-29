@@ -202,9 +202,16 @@ final class SignalEngine {
 ```
 
 **The full scoring algorithm — rules, weights, confluence math, ATR stops, and
-cooldown — is documented in `algorithm.md`.** Summary: 6 weighted rules
-(RSI 0.25, MACD 0.25, BB 0.20, EMA9 0.15, VWAP 0.10, Volume 0.05) → weighted confluence
-score; signal fires at ≥ 0.60; ATR-based 1.5×/3.0× stop/target; 5-bar cooldown.
+cooldown — is documented in `algorithm.md`.** Summary: 5 directional rules
+(RSI 0.25, MACD 0.25, BB 0.20, EMA9 0.15, VWAP 0.10) → weighted confluence score;
+Volume (0.05) is confirmation-only and excluded from the denominator; signal fires
+at ≥ 0.45; ATR-based 1.5×/3.0× stop/target; 5-bar cooldown.
+
+> The threshold was 0.60 originally but that was unreachable (max score was ~0.55
+> because Volume diluted the denominator) → the app produced zero signals. Fixed by
+> excluding Volume from the denominator and lowering the default to 0.45.
+> Backtesting found **no reliable edge** — signals are shipped as educational analysis
+> with a "not financial advice" disclaimer, not as trade recommendations.
 
 `SignalBreakdown` / `RuleBreakdown` are public types so the UI can show live per-rule
 results (which indicator voted which way, and why) even when no signal fires.
@@ -374,3 +381,10 @@ limiting when the list is large.
 **Timezone.**
 All market-hours logic uses `America/New_York` (DST-aware) via `MarketHours` and the
 chart/service filters — never the device's local timezone.
+
+**Signals are analysis, not advice.**
+Backtesting showed no reliable edge, so the app never presents signals as trade
+recommendations. `DisclaimerView` provides `DisclaimerBanner` (shown in the Signals
+list footer and empty state) and `DisclaimerDetail` (shown in Settings). Copy states
+plainly that signals are educational, backtests show no edge, and users should not
+trade real money on them.

@@ -75,6 +75,8 @@ Intra-day traders must simultaneously watch multiple stocks, compute indicators,
 - FR-01.6 ✅ For 1D range, automatically fetch the most recent trading day (skip weekends/holidays).
 - FR-01.7 ✅ Filter all intraday bars to 09:30–16:00 ET; strip weekends from multi-day ranges.
 - FR-01.8 ✅ Persist watchlist symbols to UserDefaults; API keys to iOS Keychain.
+- FR-01.10 ✅ Live streaming persists across screen navigation (managed at app scenePhase level, not per-view); stops only when the app is backgrounded.
+- FR-01.11 ✅ Watchlist capped at 10 symbols (`Configuration.maxWatchlistSymbols`) to stay under Alpaca free-tier rate limits; UI shows count and disables adding when full.
 - FR-01.9 Handle `"bars": null` response from Alpaca gracefully (market closed, holiday).
 
 ### FR-02 Technical Indicators

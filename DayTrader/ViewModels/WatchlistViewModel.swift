@@ -59,16 +59,24 @@ final class WatchlistViewModel: ObservableObject {
         return filtered.sorted(by: sortComparator)
     }
 
+    /// Symbols we already have a live subscription for (avoids duplicates when
+    /// startStreaming is called more than once, e.g. on foreground).
+    private var subscribedSymbols: Set<String> = []
+    private var didLoadInitial = false
+
+    /// Idempotent. Safe to call repeatedly; only does work for new symbols.
     func startStreaming() {
         let symbols = stocks.map(\.symbol)
-        // Fetch prices serially to avoid Alpaca free-tier rate limits,
-        // then subscribe to each live stream.
-        Task {
-            for symbol in symbols {
-                await loadInitialBars(for: symbol)
+
+        // Fetch initial bars once (serial to avoid Alpaca rate limits)
+        if !didLoadInitial {
+            didLoadInitial = true
+            Task {
+                for symbol in symbols { await loadInitialBars(for: symbol) }
             }
         }
-        for symbol in symbols {
+        // Subscribe only symbols not already streaming
+        for symbol in symbols where !subscribedSymbols.contains(symbol) {
             subscribeLive(for: symbol)
         }
     }
@@ -90,6 +98,7 @@ final class WatchlistViewModel: ObservableObject {
     }
 
     private func subscribeLive(for symbol: String) {
+        subscribedSymbols.insert(symbol)
         service.quotePublisher(for: symbol)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] quote in
@@ -101,17 +110,28 @@ final class WatchlistViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    /// Tear down all live subscriptions (call when the app goes to the background,
+    /// NOT when merely navigating between screens).
     func stopStreaming() {
         cancellables.removeAll()
+        subscribedSymbols.removeAll()
     }
 
     func addStock(_ stock: Stock) {
         guard !stocks.contains(where: { $0.symbol == stock.symbol }) else { return }
+        guard stocks.count < Configuration.maxWatchlistSymbols else {
+            errorMessage = "Watchlist is full (max \(Configuration.maxWatchlistSymbols)). "
+                + "Remove a stock before adding another."
+            return
+        }
+        errorMessage = nil
         stocks.append(stock)
         saveWatchlist()
         Task { await loadInitialBars(for: stock.symbol) }
         subscribeLive(for: stock.symbol)
     }
+
+    var isFull: Bool { stocks.count >= Configuration.maxWatchlistSymbols }
 
     func removeStock(symbol: String) {
         stocks.removeAll { $0.symbol == symbol }

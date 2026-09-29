@@ -18,6 +18,8 @@ enum AppServices {
 @main
 struct DayTraderApp: App {
 
+    @Environment(\.scenePhase) private var scenePhase
+
     @StateObject private var watchlistVM: WatchlistViewModel
     @StateObject private var signalsVM: SignalsViewModel
     @StateObject private var tradeVM: TradeViewModel
@@ -55,6 +57,15 @@ struct DayTraderApp: App {
                 .onAppear {
                     signalsVM.requestNotificationPermission()
                 }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Keep streaming alive across screen navigation; only tie it to the
+            // app's foreground/background state.
+            switch phase {
+            case .active:     watchlistVM.startStreaming()   // idempotent
+            case .background: watchlistVM.stopStreaming()
+            default:          break   // .inactive (brief transitions) — leave running
+            }
         }
     }
 }

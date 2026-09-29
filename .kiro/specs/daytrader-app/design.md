@@ -406,6 +406,20 @@ to hourly/daily bars would delete everything.
 `loadWatchlist()` fully replaces the default list with the saved symbols when one exists,
 so stocks the user removed stay removed across launches.
 
+**Streaming lifecycle is app-level, not view-level.**
+Live subscriptions must persist while navigating between screens. `startStreaming()` is
+idempotent (tracks `subscribedSymbols` + `didLoadInitial`); `stopStreaming()` tears
+everything down. They are driven by `scenePhase` in `DayTraderApp` (.active → start,
+.background → stop, .inactive → leave running), NOT by WatchlistView's onAppear/onDisappear.
+Previously they were tied to the view, so opening a stock's chart cancelled the live feed
+and signal generation for all other watchlist symbols.
+
+**Watchlist size cap.**
+`Configuration.maxWatchlistSymbols` (10) bounds how many symbols stream at once, keeping
+initial fetches and WebSocket subscriptions under Alpaca free-tier throttling limits
+(200 req/min). `addStock` rejects over-cap adds; the + button is disabled when full and
+the count is shown as "n of 10 symbols".
+
 **Serial price fetch on launch.**
 Watchlist symbols are fetched serially (not concurrently) to avoid Alpaca free-tier rate
 limiting when the list is large.

@@ -26,6 +26,10 @@ enum Configuration {
     /// Number of intra-day bars to fetch per symbol (e.g. 1-min bars for the session)
     static let intraDayBarsToFetch: Int = 390   // full session at 1-min resolution
 
+    /// Max symbols on the watchlist. Alpaca free tier allows 200 req/min and a
+    /// limited number of WebSocket symbols; capping keeps us well under throttling.
+    static let maxWatchlistSymbols: Int = 10
+
     // MARK: - Indicator defaults
     struct Indicators {
         static let rsiPeriod: Int       = 14

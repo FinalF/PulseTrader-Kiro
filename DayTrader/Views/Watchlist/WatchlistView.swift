@@ -10,22 +10,34 @@ struct WatchlistView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(watchlistVM.displayedStocks) { stock in
-                    NavigationLink {
-                        StockDetailView(symbol: stock.symbol)
-                            .environmentObject(watchlistVM)
-                            .environmentObject(signalsVM)
-                            .environmentObject(tradeVM)
-                    } label: {
-                        StockRowView(stock: stock)
-                    }
-                    .listRowBackground(Color.panelBackground)
+                // Full-watchlist warning banner
+                if let err = watchlistVM.errorMessage {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .listRowBackground(Color.clear)
                 }
-                .onDelete { offsets in
-                    offsets.forEach {
-                        let symbol = watchlistVM.displayedStocks[$0].symbol
-                        watchlistVM.removeStock(symbol: symbol)
+
+                Section {
+                    ForEach(watchlistVM.displayedStocks) { stock in
+                        NavigationLink {
+                            StockDetailView(symbol: stock.symbol)
+                                .environmentObject(watchlistVM)
+                                .environmentObject(signalsVM)
+                                .environmentObject(tradeVM)
+                        } label: {
+                            StockRowView(stock: stock)
+                        }
+                        .listRowBackground(Color.panelBackground)
                     }
+                    .onDelete { offsets in
+                        offsets.forEach {
+                            let symbol = watchlistVM.displayedStocks[$0].symbol
+                            watchlistVM.removeStock(symbol: symbol)
+                        }
+                    }
+                } header: {
+                    Text("\(watchlistVM.stocks.count) of \(Configuration.maxWatchlistSymbols) symbols")
                 }
             }
             .listStyle(.insetGrouped)
@@ -39,6 +51,7 @@ struct WatchlistView: View {
                     Button { showAddSheet = true } label: {
                         Image(systemName: "plus")
                     }
+                    .disabled(watchlistVM.isFull)
                     .accessibilityLabel("Add stock")
                 }
             }
@@ -47,8 +60,8 @@ struct WatchlistView: View {
                     .environmentObject(watchlistVM)
             }
         }
-        .onAppear { watchlistVM.startStreaming() }
-        .onDisappear { watchlistVM.stopStreaming() }
+        // Streaming lifecycle is managed at the app level (scenePhase),
+        // so it keeps running while navigating between screens.
     }
 
     private var sortMenu: some View {

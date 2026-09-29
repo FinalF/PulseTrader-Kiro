@@ -16,6 +16,12 @@ final class WatchlistViewModel: ObservableObject {
     @Published var searchText: String = ""
     @Published var errorMessage: String?
 
+    /// Called on every quote update — used to feed live prices to auto-trading.
+    var onQuote: ((String, Double) -> Void)?
+    /// Called when a watchlist symbol generates a new signal — routed to the
+    /// shared SignalsViewModel (feed, notifications, auto-trading).
+    var onSignal: ((TradeSignal) -> Void)?
+
     private let service: MarketDataService
     private let signalEngine: SignalEngine
     private var cancellables = Set<AnyCancellable>()
@@ -117,6 +123,7 @@ final class WatchlistViewModel: ObservableObject {
 
 
     private func updateStock(symbol: String, newBar: Quote?) {
+        if let close = newBar?.close { onQuote?(symbol, close) }
         guard let idx = stocks.firstIndex(where: { $0.symbol == symbol }) else { return }
         stocks[idx].latestQuote = newBar
     }
@@ -131,6 +138,7 @@ final class WatchlistViewModel: ObservableObject {
             if let idx = stocks.firstIndex(where: { $0.symbol == symbol }) {
                 stocks[idx].latestSignal = signal
             }
+            onSignal?(signal)   // forward to shared SignalsViewModel + auto-trading
         }
     }
 

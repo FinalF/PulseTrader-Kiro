@@ -23,6 +23,9 @@ final class SignalsViewModel: ObservableObject {
     @Published var filterDirection: SignalFilterDirection = .all
     @Published var filterTier: SignalFilterTier = .all
 
+    /// Called for every new signal — used to route signals to auto-trading.
+    var onNewSignal: ((TradeSignal) -> Void)?
+
     var filteredSignals: [TradeSignal] {
         allSignals
             .filter { signal in
@@ -38,6 +41,7 @@ final class SignalsViewModel: ObservableObject {
     func append(_ signal: TradeSignal) {
         allSignals.insert(signal, at: 0)
         scheduleNotificationIfNeeded(signal)
+        onNewSignal?(signal)   // route to auto-trading if wired
     }
 
     func clear() { allSignals.removeAll() }

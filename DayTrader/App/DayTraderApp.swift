@@ -19,14 +19,31 @@ enum AppServices {
 struct DayTraderApp: App {
 
     @StateObject private var watchlistVM: WatchlistViewModel
-    @StateObject private var signalsVM = SignalsViewModel()
-    @StateObject private var tradeVM   = TradeViewModel()
+    @StateObject private var signalsVM: SignalsViewModel
+    @StateObject private var tradeVM: TradeViewModel
 
     init() {
-        _watchlistVM = StateObject(wrappedValue:
-            WatchlistViewModel(service: AppServices.marketData,
-                               signalEngine: AppServices.signalEngine)
-        )
+        let wl = WatchlistViewModel(service: AppServices.marketData,
+                                    signalEngine: AppServices.signalEngine)
+        let sig = SignalsViewModel()
+        let trade = TradeViewModel()
+
+        // Route new signals → auto-trading (opens positions if enabled)
+        sig.onNewSignal = { [weak trade] signal in
+            trade?.handleAutoSignal(signal)
+        }
+        // Route live prices → auto-trading (checks stops/targets if enabled)
+        wl.onQuote = { [weak trade] symbol, price in
+            trade?.updatePrice(symbol: symbol, price: price)
+        }
+        // Forward watchlist-generated signals to the shared feed (+ notifications + auto-trade)
+        wl.onSignal = { [weak sig] signal in
+            sig?.append(signal)
+        }
+
+        _watchlistVM = StateObject(wrappedValue: wl)
+        _signalsVM   = StateObject(wrappedValue: sig)
+        _tradeVM     = StateObject(wrappedValue: trade)
     }
 
     var body: some Scene {

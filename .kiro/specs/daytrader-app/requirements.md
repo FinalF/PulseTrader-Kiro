@@ -112,6 +112,15 @@ Intra-day traders must simultaneously watch multiple stocks, compute indicators,
 - FR-05.6 ✅ Persist paper account to UserDefaults across app launches.
 - FR-05.7 ✅ Reset paper account to initial capital ($100,000 default) at any time.
 
+### FR-06 Auto-Trading (Paper, opt-in)
+- FR-06.1 ✅ Off by default; user enables it in Settings.
+- FR-06.2 ✅ When on, automatically opens a paper position on each qualifying BUY signal (confidence ≥ configurable threshold, default 60%).
+- FR-06.3 ✅ Position sizing takes the minimum of three constraints: 1% equity risk on the stop distance, available cash, and a 10% max position size.
+- FR-06.4 ✅ One open position per symbol; long-only in v1.
+- FR-06.5 ✅ Automatically closes a position when its ATR stop-loss or take-profit is hit (checked on every live price update).
+- FR-06.6 ✅ Maintains an activity log of auto open/close actions shown in Settings.
+- FR-06.7 ✅ Simulated money only — never connected to a brokerage. Carries the same "not financial advice" framing.
+
 ---
 
 ## Non-Functional Requirements

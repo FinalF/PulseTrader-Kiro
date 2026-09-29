@@ -245,6 +245,17 @@ results (which indicator voted which way, and why) even when no signal fires.
 - `@Published var portfolio: Portfolio`
 - `func submitOrder(_ order: PaperOrder)` — validates, fills (with slippage), updates portfolio
 - `func closePosition(_ trade: Trade, at price: Double)`
+- **Auto-trading (opt-in):** `autoTradingEnabled`, `autoMinConfidence` (persisted).
+  `positionSize(entry:stop:)` = min(1% risk, cash cap, 10% position cap).
+  `handleAutoSignal(_:)` auto-opens a long on a qualifying BUY signal (one per symbol).
+  `updatePrice(symbol:price:)` runs `checkStopsAndTargets` to auto-close on stop/target.
+  `autoLog` records actions. Paper money only, never a real brokerage.
+
+**Signal & price wiring (DayTraderApp.init):** `SignalsViewModel.onNewSignal` →
+`TradeViewModel.handleAutoSignal`; `WatchlistViewModel.onQuote` →
+`TradeViewModel.updatePrice`; `WatchlistViewModel.onSignal` → `SignalsViewModel.append`
+(the last also fixed a latent bug where watchlist-generated signals never reached the
+shared feed / notifications).
 
 ---
 

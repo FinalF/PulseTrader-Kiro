@@ -161,6 +161,37 @@ struct SettingsView: View {
                     }
                 }
 
+                // MARK: Auto-Trading (paper only, opt-in)
+                Section {
+                    Toggle("Enable Auto-Trading", isOn: $tradeVM.autoTradingEnabled)
+
+                    if tradeVM.autoTradingEnabled {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Only auto-trade signals ≥ \(Int(tradeVM.autoMinConfidence * 100))% confidence")
+                            Slider(value: $tradeVM.autoMinConfidence, in: 0.45...0.95, step: 0.05)
+                        }
+                        Label("Long-only. 1% risk/trade, capped at 10% of equity per position. Paper money only.",
+                              systemImage: "info.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Auto-Trading (Paper)")
+                } footer: {
+                    Text("When ON, the app automatically opens a paper position on each qualifying BUY signal and closes it when the ATR stop-loss or take-profit is hit. This uses simulated money only and is NOT connected to any brokerage. Backtesting showed no reliable edge — this is an educational simulation, not investment advice.")
+                }
+
+                // Auto-trade activity log
+                if tradeVM.autoTradingEnabled && !tradeVM.autoLog.isEmpty {
+                    Section("Auto-Trade Activity") {
+                        ForEach(tradeVM.autoLog.prefix(15), id: \.self) { entry in
+                            Text(entry)
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 // MARK: Disclaimer
                 Section {
                     DisclaimerDetail()

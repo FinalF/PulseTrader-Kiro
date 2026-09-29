@@ -121,6 +121,14 @@ Intra-day traders must simultaneously watch multiple stocks, compute indicators,
 - FR-06.6 ✅ Maintains an activity log of auto open/close actions shown in Settings.
 - FR-06.7 ✅ Simulated money only — never connected to a brokerage. Carries the same "not financial advice" framing.
 
+### FR-07 Testing
+- FR-07.1 ✅ Unit tests for all indicator calculators against known reference values (88–100% coverage).
+- FR-07.2 ✅ Unit tests for the signal engine: confluence score range, Volume excluded from denominator, valid stop/target with 1:2 R:R, 5-bar cooldown.
+- FR-07.3 ✅ Unit tests for position sizing (1% risk / cash / 10% cap constraints, including the over-cash and tight-stop edge cases) and portfolio P&L / win-rate / profit-factor.
+- FR-07.4 ✅ Unit tests for auto-trading: auto-open on qualifying BUY, one-per-symbol, SELL ignored, auto-close on stop/target, disabled = no-op, activity logging.
+- FR-07.5 ✅ Unit tests for `MarketHours` session boundaries (09:30/16:00 ET, weekends) via injectable date variants.
+- FR-07.6 ⚠️ Backtest harness (`Backtester` + `BacktestTests`) requires live Alpaca data and is excluded from the core coverage run.
+
 ---
 
 ## Non-Functional Requirements

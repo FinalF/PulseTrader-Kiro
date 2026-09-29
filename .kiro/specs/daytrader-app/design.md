@@ -344,13 +344,34 @@ enum DayTraderError: Error {
 
 ### 10. Testing Strategy
 
+**Test files (in `DayTraderTests/`):**
+
+| File | Covers | Notes |
+|------|--------|-------|
+| `IndicatorTests` | SMA, EMA, MACD, RSI, BB, ATR, VWAP | Known-value assertions; indicator files are 88–100% covered |
+| `SignalEngineTests` | Confluence score range, Volume-excluded-from-denominator, valid stops/RR, cooldown | SignalEngine ~76% covered |
+| `PositionSizingTests` | 3-constraint sizing (risk/cash/cap), P&L sign, portfolio win rate & profit factor | Covers the "can't afford" and "tight stop" edge cases |
+| `AutoTradingTests` | Auto-open on qualifying BUY, one-per-symbol, SELL ignored, auto-close on stop/target, disabled = no-op, activity log | Drives `handleAutoSignal` + `checkStopsAndTargets` via `updatePrice` |
+| `MarketHoursTests` | Session open/closed, 09:30/16:00 boundaries, weekend, status labels | Uses injectable `isOpen(at:)` / `statusLabel(at:)` for deterministic times |
+| `BacktestTests` + `Backtester` | Strategy backtest harness (research) | Requires live Alpaca data; excluded from the core coverage run |
+
+**Coverage (core logic, last full run):** Indicators 88–100%, IndicatorEngine 100%,
+SignalEngine ~76%, TradeViewModel raised from 23% by the auto-trading tests. Overall
+app coverage (~19%) is dominated by SwiftUI views, which are validated by Previews /
+manual testing rather than unit tests — that number is not a meaningful target.
+
 | Layer | Approach |
 |-------|---------|
-| Indicator calculators | XCTest unit tests with known datasets, compare to reference values |
-| Signal engine | XCTest with fixture bar arrays; assert signals fire/don't fire |
-| ViewModels | XCTest + `XCTestExpectation` for Combine publishers |
-| Networking | Protocol-injected mocks; no live network calls in tests |
+| Indicator calculators | Known-dataset unit tests, compare to reference values |
+| Signal engine | Fixture bar arrays; assert scores, cooldown, stop validity |
+| Position sizing / auto-trading | Direct `TradeViewModel` tests with synthetic signals & prices |
+| Market hours | Injectable date variants for deterministic boundary tests |
+| Networking | Protocol-injected mocks; no live network calls in unit tests |
 | UI | SwiftUI Previews for visual spot-check; no XCUITest in v1 |
+
+> **To run:** `Cmd+U` in Xcode, or `xcodebuild test -scheme DayTrader -destination
+> "platform=iOS Simulator,name=iPhone 17,OS=27.0" -enableCodeCoverage YES`
+> (exclude `BacktestTests` unless Alpaca credentials are available).
 
 ---
 
@@ -391,7 +412,9 @@ limiting when the list is large.
 
 **Timezone.**
 All market-hours logic uses `America/New_York` (DST-aware) via `MarketHours` and the
-chart/service filters — never the device's local timezone.
+chart/service filters — never the device's local timezone. `MarketHours` exposes
+`isOpen(at:)` / `statusLabel(at:)` taking an explicit date so session boundaries can be
+unit-tested deterministically; the parameterless properties just pass `Date()`.
 
 **Signals are analysis, not advice.**
 Backtesting showed no reliable edge, so the app never presents signals as trade
